@@ -32,6 +32,7 @@ import { router } from "expo-router";
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
+import AlarmModal from "@/components/AlarmModal";
 
 export default function SafetyHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -39,6 +40,7 @@ export default function SafetyHomeScreen() {
   const [sosCountdown, setSOSCountdown] = useState(5);
   const [safetyStatus, setSafetyStatus] = useState("Safe");
   const [nearbyResources, setNearbyResources] = useState([]);
+  const [isAlarmActive, setIsAlarmActive] = useState(false);
   const theme = useTheme();
 
   const [fontsLoaded] = useFonts({
@@ -109,19 +111,13 @@ export default function SafetyHomeScreen() {
   };
 
   const handleFakeCall = () => {
-    Alert.alert(
-      "Fake Call",
-      "Starting fake call to help you exit safely...",
-      [{ text: "OK" }]
-    );
+    // Navigate to fake call screen
+    router.push("/fake-call");
   };
 
   const handleLoudAlarm = () => {
-    Alert.alert(
-      "Loud Alarm",
-      "Alarm activated to attract attention!",
-      [{ text: "Stop Alarm", style: "destructive" }]
-    );
+    // Activate the alarm modal
+    setIsAlarmActive(true);
     Vibration.vibrate([500, 200, 500, 200, 500]);
   };
 
@@ -132,6 +128,12 @@ export default function SafetyHomeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar style={theme.colors.statusBar} />
+
+      {/* Alarm Modal */}
+      <AlarmModal 
+        visible={isAlarmActive} 
+        onClose={() => setIsAlarmActive(false)} 
+      />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -281,6 +283,7 @@ export default function SafetyHomeScreen() {
 
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
             <TouchableOpacity
+              data-testid="fake-call-button"
               style={{
                 flex: 1,
                 backgroundColor: theme.colors.elevated,
@@ -305,6 +308,7 @@ export default function SafetyHomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              data-testid="loud-alarm-button"
               style={{
                 flex: 1,
                 backgroundColor: theme.colors.elevated,
