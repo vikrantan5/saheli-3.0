@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -34,6 +34,10 @@ import {
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
+import { auth } from "@/config/firebaseConfig";
+import { getUserDetails } from "@/services/userService";
+import { signOut } from "firebase/auth";
+import { router } from "expo-router";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -41,6 +45,8 @@ export default function ProfileScreen() {
   const [aiMonitoring, setAIMonitoring] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [voiceActivation, setVoiceActivation] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
   const theme = useTheme();
 
   const [fontsLoaded] = useFonts({
@@ -49,24 +55,36 @@ export default function ProfileScreen() {
     Inter_600SemiBold,
   });
 
-  const userProfile = {
-    name: "Sarah Johnson",
-    email: "sarah@example.com",
-    phone: "+1 (555) 123-4567",
-    emergencyContacts: 3,
-    communityPosts: 12,
-    alertsShared: 5,
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        const userDetails = await getUserDetails(user.uid);
+        setUserProfile({
+          name: userDetails?.name || "User",
+          email: user.email,
+          phone: userDetails?.emergencyContacts?.[0] || "N/A",
+          emergencyContacts: userDetails?.emergencyContacts?.length || 0,
+          address: userDetails?.address || "",
+          occupation: userDetails?.occupation || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEmergencyContacts = () => {
     Alert.alert(
       "Emergency Contacts",
-      "Manage your emergency contact list. These contacts will be notified during SOS activations.",
-      [
-        { text: "Add Contact", onPress: () => console.log("Add contact") },
-        { text: "View All", onPress: () => console.log("View contacts") },
-        { text: "Cancel", style: "cancel" },
-      ]
+      `Your emergency contacts:\n${userProfile?.emergencyContacts || 0} contacts saved`,
+      [{ text: "OK" }]
     );
   };
 
@@ -107,19 +125,41 @@ export default function ProfileScreen() {
     );
   };
 
+
+
   const handleLogout = () => {
     Alert.alert(
       "Sign Out",
       "Are you sure you want to sign out? This will disable safety monitoring until you sign back in.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Sign Out", style: "destructive", onPress: () => console.log("Logout") },
+        { 
+          text: "Sign Out", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await signOut(auth);
+              router.replace("/auth/login");
+            } catch (error) {
+              console.error("Logout error:", error);
+              Alert.alert("Error", "Failed to sign out. Please try again.");
+            }
+          }
+        },
       ]
     );
   };
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || loading) {
     return <LoadingScreen />;
+  }
+
+  if (!userProfile) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Error loading profile</Text>
+      </View>
+    );
   }
 
   const SettingItem = ({ icon: IconComponent, title, subtitle, onPress, rightElement }) => (
@@ -299,7 +339,7 @@ export default function ProfileScreen() {
                     color: theme.colors.text,
                   }}
                 >
-                  {userProfile.communityPosts}
+                  0
                 </Text>
                 <Text
                   style={{
@@ -319,7 +359,7 @@ export default function ProfileScreen() {
                     color: theme.colors.text,
                   }}
                 >
-                  {userProfile.alertsShared}
+                  0
                 </Text>
                 <Text
                   style={{

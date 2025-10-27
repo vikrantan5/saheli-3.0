@@ -3,7 +3,11 @@
 	"main": "index",
 	"version": "1.0.0",
 	"scripts": {
-		"postinstall": "patch-package"
+		"postinstall": "patch-package",
+		"start": "npx expo start --web",
+		"web": "npx expo start --web",
+		"android": "npx expo start --android",
+		"ios": "npx expo start --ios"
 	},
 	"dependencies": {
 		"@expo-google-fonts/dev": "^0.4.7",
@@ -53,6 +57,7 @@
 		"expo-updates": "~0.28.14",
 		"expo-video": "~2.2.1",
 		"expo-web-browser": "~14.1.6",
+		"firebase": "^12.4.0",
 		"lodash": "^4.17.21",
 		"lucide-react-native": "^0.525.0",
 		"moti": "0.30.0",

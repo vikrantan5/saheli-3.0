@@ -61,19 +61,9 @@ export default function FakeCallScreen() {
         shouldDuckAndroid: true,
       });
 
-      // Try to load local ringtone first, fallback to online if not available
-      let soundSource;
-      try {
-        soundSource = require("../../assets/audio/ringtone.mp3");
-      } catch (error) {
-        console.log("Local ringtone not found, using fallback");
-        soundSource = { 
-          uri: "https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3" 
-        };
-      }
-
+      // Load local ringtone
       const { sound: ringtone } = await Audio.Sound.createAsync(
-        soundSource,
+        require("@/assets/audio/ringtone.mp3"),
         { shouldPlay: true, isLooping: true, volume: 0.6 }
       );
       setSound(ringtone);

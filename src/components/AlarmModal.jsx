@@ -43,19 +43,9 @@ export default function AlarmModal({ visible, onClose }) {
         playThroughEarpieceAndroid: false,
       });
 
-      // Try to load local alarm sound first, fallback to online if not available
-      let soundSource;
-      try {
-        soundSource = require("../../assets/audio/alarm.mp3");
-      } catch (error) {
-        console.log("Local alarm not found, using fallback");
-        soundSource = { 
-          uri: "https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3" 
-        };
-      }
-
+      // Load local alarm sound
       const { sound: alarmSound } = await Audio.Sound.createAsync(
-        soundSource,
+        require("@/assets/audio/alarm.mp3"),
         { 
           shouldPlay: true, 
           isLooping: true, 
