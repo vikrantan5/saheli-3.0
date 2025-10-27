@@ -52,12 +52,12 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!isReady) return;
 
-    const inAuthGroup = segments[0] === 'auth';
+    const inAuthGroup = segments[0] === '(auth)';
 
     if (!user && !inAuthGroup) {
-      router.replace('/auth/login');
+      router.replace('/(auth)/login');
     } else if (user && !hasUserDetails && segments[1] !== 'user-details') {
-      router.replace('/auth/user-details');
+      router.replace('/(auth)/user-details');
     } else if (user && hasUserDetails && inAuthGroup) {
       router.replace('/(tabs)');
     }
@@ -75,7 +75,7 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="auth" />
+      <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="fake-call" />
       <Stack.Screen name="in-call" />

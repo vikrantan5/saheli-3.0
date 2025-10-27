@@ -70,7 +70,7 @@ export default function UserDetailsScreen() {
       
       if (!user) {
         Alert.alert('Error', 'No user logged in');
-        router.replace('/auth/login');
+        router.replace('/(auth)/login');
         return;
       }
 
