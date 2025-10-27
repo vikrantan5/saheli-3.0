@@ -1,4 +1,3 @@
-
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
@@ -33,7 +32,6 @@ function RootLayoutNav() {
       setUser(user);
       
       if (user) {
-        // Check if user has completed their profile
         try {
           const userDetails = await getUserDetails(user.uid);
           setHasUserDetails(!!userDetails);
@@ -57,13 +55,10 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === 'auth';
 
     if (!user && !inAuthGroup) {
-      // Redirect to login if not authenticated
       router.replace('/auth/login');
     } else if (user && !hasUserDetails && segments[1] !== 'user-details') {
-      // Redirect to user details if authenticated but profile incomplete
       router.replace('/auth/user-details');
     } else if (user && hasUserDetails && inAuthGroup) {
-      // Redirect to home if authenticated and profile complete
       router.replace('/(tabs)');
     }
   }, [user, hasUserDetails, segments, isReady]);
@@ -80,9 +75,7 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="auth/login" />
-      <Stack.Screen name="auth/register" />
-      <Stack.Screen name="auth/user-details" />
+      <Stack.Screen name="auth" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="fake-call" />
       <Stack.Screen name="in-call" />
