@@ -36,8 +36,10 @@ import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
 import { auth } from "@/config/firebaseConfig";
 import { getUserDetails } from "@/services/userService";
+import { getUserPostCount } from "@/services/communityService";
 import { signOut } from "firebase/auth";
 import { router } from "expo-router";
+import { useFocusEffect } from "expo-router";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -47,6 +49,7 @@ export default function ProfileScreen() {
   const [voiceActivation, setVoiceActivation] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [postsCount, setPostsCount] = useState(0);
   const theme = useTheme();
 
   const [fontsLoaded] = useFonts({
@@ -58,6 +61,25 @@ export default function ProfileScreen() {
   useEffect(() => {
     loadUserData();
   }, []);
+
+  // Refresh post count when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      const user = auth.currentUser;
+      if (user) {
+        loadPostCount(user.uid);
+      }
+    }, [])
+  );
+
+  const loadPostCount = async (userId) => {
+    try {
+      const count = await getUserPostCount(userId);
+      setPostsCount(count);
+    } catch (error) {
+      console.error("Error loading post count:", error);
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -81,6 +103,9 @@ export default function ProfileScreen() {
           address: userDetails?.address || "",
           occupation: userDetails?.occupation || "",
         });
+
+        // Load post count
+        await loadPostCount(user.uid);
       }
     } catch (error) {
       console.error("Error loading user data:", error);
@@ -310,13 +335,14 @@ export default function ProfileScreen() {
             <View
               style={{
                 flexDirection: "row",
-                justifyContent: "space-between",
+                flexWrap: "wrap",
                 paddingTop: 16,
                 borderTopWidth: 1,
                 borderTopColor: theme.colors.divider,
+                gap: 12,
               }}
             >
-              <View style={{ alignItems: "center" }}>
+              <View style={{ alignItems: "center", minWidth: "30%" }}>
                 <Text
                   style={{
                     fontFamily: "Inter_600SemiBold",
@@ -329,14 +355,36 @@ export default function ProfileScreen() {
                 <Text
                   style={{
                     fontFamily: "Inter_400Regular",
-                    fontSize: 12,
+                    fontSize: 11,
                     color: theme.colors.textSecondary,
+                    textAlign: "center",
                   }}
                 >
-                  Emergency Contacts
+                  Emergency{"\n"}Contacts
                 </Text>
               </View>
-              <View style={{ alignItems: "center" }}>
+              <View style={{ alignItems: "center", minWidth: "30%" }}>
+                <Text
+                  style={{
+                    fontFamily: "Inter_600SemiBold",
+                    fontSize: 20,
+                    color: theme.colors.text,
+                  }}
+                >
+                  {postsCount}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 11,
+                    color: theme.colors.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
+                  Community{"\n"}Posts
+                </Text>
+              </View>
+              <View style={{ alignItems: "center", minWidth: "30%" }}>
                 <Text
                   style={{
                     fontFamily: "Inter_600SemiBold",
@@ -349,31 +397,12 @@ export default function ProfileScreen() {
                 <Text
                   style={{
                     fontFamily: "Inter_400Regular",
-                    fontSize: 12,
+                    fontSize: 11,
                     color: theme.colors.textSecondary,
+                    textAlign: "center",
                   }}
                 >
-                  Community Posts
-                </Text>
-              </View>
-              <View style={{ alignItems: "center" }}>
-                <Text
-                  style={{
-                    fontFamily: "Inter_600SemiBold",
-                    fontSize: 20,
-                    color: theme.colors.text,
-                  }}
-                >
-                  0
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: "Inter_400Regular",
-                    fontSize: 12,
-                    color: theme.colors.textSecondary,
-                  }}
-                >
-                  Alerts Shared
+                  Alerts{"\n"}Shared
                 </Text>
               </View>
             </View>

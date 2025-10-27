@@ -9,7 +9,8 @@ import {
   updateDoc,
   runTransaction,
   serverTimestamp,
-  getDoc
+  getDoc,
+  getDocs
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth } from '../config/firebaseConfig';
@@ -186,4 +187,26 @@ export const hasUserUpvoted = (upvoters) => {
  */
 export const isCriticalPost = (upvotes) => {
   return upvotes >= 10;
+};
+
+/**
+ * Get user's post count
+ * @param {string} userId - User ID
+ * @returns {Promise<number>} - Number of posts by user
+ */
+export const getUserPostCount = async (userId) => {
+  try {
+    if (!userId) return 0;
+    
+    const q = query(
+      collection(db, 'community_posts'),
+      where('userId', '==', userId)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.size;
+  } catch (error) {
+    console.error('Error getting user post count:', error);
+    return 0;
+  }
 };
