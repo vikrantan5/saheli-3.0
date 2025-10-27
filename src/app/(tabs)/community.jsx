@@ -103,8 +103,7 @@ export default function CommunityScreen() {
         ]);
       }
     } catch (error) {
-      console.error('Failed to load posts:', error);
-      // Use fallback mock data
+      // Using fallback mock data (no backend API available)
       setPosts([
         {
           id: 1,

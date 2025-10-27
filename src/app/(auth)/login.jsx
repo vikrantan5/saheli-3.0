@@ -75,6 +75,10 @@ export default function LoginScreen() {
         errorMessage = 'This account has been disabled';
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later';
+      } else if (error.code === 'auth/configuration-not-found') {
+        errorMessage = 'Firebase is not properly configured.\n\nPlease enable Email/Password authentication in Firebase Console:\n\n1. Go to Authentication\n2. Click Sign-in method\n3. Enable Email/Password';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection';
       }
       
       Alert.alert('Login Failed', errorMessage);

@@ -15,7 +15,7 @@ import { router } from 'expo-router';
 import { auth } from '../../config/firebaseConfig';
 import { saveUserDetails } from '../../services/userService';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, MapPin, Briefcase, Phone, X } from 'lucide-react-native';
+import { User, MapPin, Briefcase, Phone } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function UserDetailsScreen() {
@@ -79,6 +79,7 @@ export default function UserDetailsScreen() {
         contact.replace(/\D/g, '')
       );
 
+      // Save user details to Firestore
       await saveUserDetails(user.uid, {
         name: name.trim(),
         address: address.trim(),
@@ -86,21 +87,29 @@ export default function UserDetailsScreen() {
         emergencyContacts: cleanedContacts,
       });
 
-      Alert.alert(
-        'Success',
-        'Your details have been saved successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)'),
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Error saving user details:', error);
-      Alert.alert('Error', 'Failed to save your details. Please try again.');
-    } finally {
+      console.log('✅ User details saved successfully!');
+      console.log('Redirecting to dashboard...');
+      
+      // Immediate redirect without alert
       setLoading(false);
+      router.replace('/(tabs)');
+      
+    } catch (error) {
+      console.error('❌ Error saving user details:', error);
+      setLoading(false);
+      
+      let errorMessage = 'Failed to save your details. Please try again.';
+      
+      // Provide specific error messages
+      if (error.message && error.message.includes('Firestore')) {
+        errorMessage = 'Database connection error.\n\nPlease ensure:\n1. You have internet connection\n2. Firestore is enabled in Firebase Console\n\nCheck FIRESTORE_SETUP_GUIDE.md for instructions.';
+      } else if (error.code === 'unavailable') {
+        errorMessage = 'Cannot connect to database. Please check your internet connection and try again.';
+      } else if (error.code === 'permission-denied') {
+        errorMessage = 'Permission denied. Please contact support.';
+      }
+      
+      Alert.alert('Error', errorMessage);
     }
   };
 

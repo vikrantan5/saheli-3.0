@@ -112,7 +112,7 @@ export default function AlertsScreen() {
         ]);
       }
     } catch (error) {
-      console.error('Failed to load alerts:', error);
+      // Using fallback mock data (no backend API available)
       setAlerts([]);
     }
   };

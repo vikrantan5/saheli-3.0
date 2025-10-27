@@ -27,38 +27,59 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
 
+  // Function to check user details
+  const checkUserDetails = async (currentUser) => {
+    if (currentUser) {
+      try {
+        console.log('Checking user details for uid:', currentUser.uid);
+        const userDetails = await getUserDetails(currentUser.uid);
+        const hasDetails = !!userDetails;
+        console.log('User has details:', hasDetails);
+        setHasUserDetails(hasDetails);
+        return hasDetails;
+      } catch (error) {
+        console.error('Error fetching user details:', error);
+        setHasUserDetails(false);
+        return false;
+      }
+    } else {
+      setHasUserDetails(false);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
-      
-      if (user) {
-        try {
-          const userDetails = await getUserDetails(user.uid);
-          setHasUserDetails(!!userDetails);
-        } catch (error) {
-          console.error('Error fetching user details:', error);
-          setHasUserDetails(false);
-        }
-      } else {
-        setHasUserDetails(false);
-      }
-      
+      await checkUserDetails(user);
       setIsReady(true);
     });
 
     return unsubscribe;
   }, []);
 
+  // Re-check user details when navigating to tabs
+  useEffect(() => {
+    if (user && segments[0] === '(tabs)' && !hasUserDetails) {
+      checkUserDetails(user);
+    }
+  }, [segments, user]);
+
   useEffect(() => {
     if (!isReady) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    
+    console.log('Navigation check - User:', !!user, 'HasDetails:', hasUserDetails, 'Segments:', segments);
 
     if (!user && !inAuthGroup) {
+      console.log('→ Redirecting to login (no user)');
       router.replace('/(auth)/login');
     } else if (user && !hasUserDetails && segments[1] !== 'user-details') {
+      console.log('→ Redirecting to user-details (no profile)');
       router.replace('/(auth)/user-details');
     } else if (user && hasUserDetails && inAuthGroup) {
+      console.log('→ Redirecting to dashboard (profile complete)');
       router.replace('/(tabs)');
     }
   }, [user, hasUserDetails, segments, isReady]);
