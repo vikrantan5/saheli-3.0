@@ -64,11 +64,20 @@ export default function ProfileScreen() {
       const user = auth.currentUser;
       if (user) {
         const userDetails = await getUserDetails(user.uid);
+        
+        // Handle emergency contacts count properly
+        let contactsCount = 0;
+        if (userDetails?.emergencyContacts) {
+          contactsCount = Array.isArray(userDetails.emergencyContacts) 
+            ? userDetails.emergencyContacts.length 
+            : 0;
+        }
+        
         setUserProfile({
           name: userDetails?.name || "User",
           email: user.email,
-          phone: userDetails?.emergencyContacts?.[0] || "N/A",
-          emergencyContacts: userDetails?.emergencyContacts?.length || 0,
+          phone: userDetails?.emergencyContacts?.[0]?.phone || userDetails?.emergencyContacts?.[0] || "N/A",
+          emergencyContacts: contactsCount,
           address: userDetails?.address || "",
           occupation: userDetails?.occupation || "",
         });
@@ -81,11 +90,7 @@ export default function ProfileScreen() {
   };
 
   const handleEmergencyContacts = () => {
-    Alert.alert(
-      "Emergency Contacts",
-      `Your emergency contacts:\n${userProfile?.emergencyContacts || 0} contacts saved`,
-      [{ text: "OK" }]
-    );
+    router.push("/emergency-contacts");
   };
 
   const handleGeoFences = () => {

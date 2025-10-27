@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from "react-native";
 import { AlertTriangle, X } from "lucide-react-native";
-import { Audio } from "expo-audio";
+import { Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
@@ -180,6 +180,7 @@ export default function AlarmModal({ visible, onClose }) {
             style={styles.stopButton}
             onPress={handleStop}
             activeOpacity={0.8}
+            data-testid="stop-alarm-button"
           >
             <X size={32} color="#DC143C" strokeWidth={3} />
             <Text style={styles.stopButtonText}>STOP ALARM</Text>

@@ -33,6 +33,7 @@ import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
 import AlarmModal from "@/components/AlarmModal";
+import { triggerSOS } from "@/services/sosService";
 
 export default function SafetyHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -88,25 +89,54 @@ export default function SafetyHomeScreen() {
 
   const handleSOSActivation = async () => {
     try {
-      const response = await fetch('/api/safety/sos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: { lat: 40.7128, lng: -74.0060 }, // Mock location
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      // Show loading alert
+      Alert.alert(
+        "🚨 SOS Activating",
+        "Sending emergency alerts...",
+        [],
+        { cancelable: false }
+      );
 
-      if (response.ok) {
-        Alert.alert(
-          "SOS Activated",
-          "Emergency contacts have been notified. Help is on the way.",
-          [{ text: "OK" }]
-        );
+      // Trigger SOS with all emergency protocols
+      const result = await triggerSOS();
+
+      // Build success message
+      let message = "Emergency protocols activated:\n\n";
+      
+      if (result.sms.success) {
+        message += `✅ SMS sent to ${result.sms.sentTo} contact(s)\n`;
+      } else if (result.sms.error) {
+        message += `⚠️ SMS: ${result.sms.error}\n`;
       }
+
+      if (result.call.success) {
+        message += `✅ ${result.call.message}\n`;
+      } else if (result.call.error) {
+        message += `⚠️ Call: ${result.call.error}\n`;
+      }
+
+      if (result.location) {
+        message += `\n📍 Location shared:\n${result.location.latitude.toFixed(6)}, ${result.location.longitude.toFixed(6)}`;
+      } else {
+        message += `\n⚠️ Location unavailable`;
+      }
+
+      // Show success alert
+      Alert.alert(
+        "🚨 SOS Alert Sent!",
+        message,
+        [{ text: "OK" }]
+      );
+
     } catch (error) {
       console.error('SOS activation failed:', error);
-      Alert.alert("SOS Activated", "Emergency protocol initiated.");
+      
+      // Show error alert
+      Alert.alert(
+        "SOS Error",
+        error.message || "Failed to send emergency alert. Please ensure you have added emergency contacts in your profile and granted necessary permissions.",
+        [{ text: "OK" }]
+      );
     }
   };
 
@@ -198,6 +228,7 @@ export default function SafetyHomeScreen() {
         {/* Main SOS Button */}
         <View style={{ alignItems: "center", marginBottom: 40 }}>
           <TouchableOpacity
+            data-testid="sos-button"
             style={{
               width: 200,
               height: 200,

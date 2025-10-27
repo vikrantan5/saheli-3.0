@@ -15,7 +15,7 @@ import { router } from 'expo-router';
 import { auth } from '../../config/firebaseConfig';
 import { saveUserDetails } from '../../services/userService';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, MapPin, Briefcase, Phone } from 'lucide-react-native';
+import { User, MapPin, Briefcase, Phone, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function UserDetailsScreen() {
@@ -23,7 +23,11 @@ export default function UserDetailsScreen() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [occupation, setOccupation] = useState('');
-  const [emergencyContacts, setEmergencyContacts] = useState(['', '', '']);
+  const [emergencyContacts, setEmergencyContacts] = useState([
+    { name: '', phone: '' },
+    { name: '', phone: '' },
+    { name: '', phone: '' }
+  ]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -50,10 +54,13 @@ export default function UserDetailsScreen() {
     
     // Validate all 3 emergency contacts
     emergencyContacts.forEach((contact, index) => {
-      if (!contact.trim()) {
-        newErrors[`contact${index}`] = `Contact ${index + 1} is required`;
-      } else if (!validatePhoneNumber(contact)) {
-        newErrors[`contact${index}`] = 'Invalid phone number (min 10 digits)';
+      if (!contact.name.trim()) {
+        newErrors[`contactName${index}`] = `Contact ${index + 1} name is required`;
+      }
+      if (!contact.phone.trim()) {
+        newErrors[`contactPhone${index}`] = `Contact ${index + 1} phone is required`;
+      } else if (!validatePhoneNumber(contact.phone)) {
+        newErrors[`contactPhone${index}`] = 'Invalid phone number (min 10 digits)';
       }
     });
     
@@ -74,48 +81,41 @@ export default function UserDetailsScreen() {
         return;
       }
 
-      // Clean phone numbers (remove non-digits)
-      const cleanedContacts = emergencyContacts.map(contact => 
-        contact.replace(/\D/g, '')
-      );
+      // Format emergency contacts with priority
+      const formattedContacts = emergencyContacts.map((contact, index) => ({
+        name: contact.name.trim(),
+        phone: contact.phone.replace(/\D/g, ''),
+        priority: index + 1
+      }));
 
-      // Save user details to Firestore
       await saveUserDetails(user.uid, {
         name: name.trim(),
         address: address.trim(),
         occupation: occupation.trim(),
-        emergencyContacts: cleanedContacts,
+        emergencyContacts: formattedContacts,
       });
 
-      console.log('✅ User details saved successfully!');
-      console.log('Redirecting to dashboard...');
-      
-      // Immediate redirect without alert
-      setLoading(false);
-      router.replace('/(tabs)');
-      
+      Alert.alert(
+        'Success',
+        'Your details have been saved successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)'),
+          },
+        ]
+      );
     } catch (error) {
-      console.error('❌ Error saving user details:', error);
+      console.error('Error saving user details:', error);
+      Alert.alert('Error', 'Failed to save your details. Please try again.');
+    } finally {
       setLoading(false);
-      
-      let errorMessage = 'Failed to save your details. Please try again.';
-      
-      // Provide specific error messages
-      if (error.message && error.message.includes('Firestore')) {
-        errorMessage = 'Database connection error.\n\nPlease ensure:\n1. You have internet connection\n2. Firestore is enabled in Firebase Console\n\nCheck FIRESTORE_SETUP_GUIDE.md for instructions.';
-      } else if (error.code === 'unavailable') {
-        errorMessage = 'Cannot connect to database. Please check your internet connection and try again.';
-      } else if (error.code === 'permission-denied') {
-        errorMessage = 'Permission denied. Please contact support.';
-      }
-      
-      Alert.alert('Error', errorMessage);
     }
   };
 
-  const updateEmergencyContact = (index, value) => {
+  const handleUpdateContact = (index, field, value) => {
     const newContacts = [...emergencyContacts];
-    newContacts[index] = value;
+    newContacts[index][field] = value;
     setEmergencyContacts(newContacts);
   };
 
@@ -207,12 +207,38 @@ export default function UserDetailsScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Emergency Contacts</Text>
               <Text style={styles.helperText}>
-                Add 3 emergency contact numbers. They will be notified in case of emergency.
+                Add 3 emergency contacts with names. Priority 1 will receive calls, all receive SMS.
               </Text>
 
               {emergencyContacts.map((contact, index) => (
-                <View key={index}>
+                <View key={index} style={{ marginBottom: 16 }}>
+                  <View style={styles.contactHeader}>
+                    <Text style={styles.contactPriority}>Priority {index + 1}</Text>
+                    {index === 0 && (
+                      <Text style={styles.priorityBadge}>📞 Will receive calls</Text>
+                    )}
+                  </View>
+                  
+                  {/* Contact Name */}
                   <View style={styles.inputContainer}>
+                    <View style={styles.inputIconContainer}>
+                      <User size={20} color="#E91E63" strokeWidth={2} />
+                    </View>
+                    <TextInput
+                      style={styles.input}
+                      placeholder={`Contact ${index + 1} Name (e.g., Mom, Friend)`}
+                      placeholderTextColor="#999"
+                      value={contact.name}
+                      onChangeText={(value) => handleUpdateContact(index, 'name', value)}
+                      data-testid={`emergency-contact-name-${index + 1}`}
+                    />
+                  </View>
+                  {errors[`contactName${index}`] && (
+                    <Text style={styles.errorText}>{errors[`contactName${index}`]}</Text>
+                  )}
+                  
+                  {/* Contact Phone */}
+                  <View style={[styles.inputContainer, { marginTop: 8 }]}>
                     <View style={styles.inputIconContainer}>
                       <Phone size={20} color="#E91E63" strokeWidth={2} />
                     </View>
@@ -220,14 +246,14 @@ export default function UserDetailsScreen() {
                       style={styles.input}
                       placeholder={`Contact ${index + 1} Phone Number`}
                       placeholderTextColor="#999"
-                      value={contact}
-                      onChangeText={(value) => updateEmergencyContact(index, value)}
+                      value={contact.phone}
+                      onChangeText={(value) => handleUpdateContact(index, 'phone', value)}
                       keyboardType="phone-pad"
-                      data-testid={`emergency-contact-${index + 1}`}
+                      data-testid={`emergency-contact-phone-${index + 1}`}
                     />
                   </View>
-                  {errors[`contact${index}`] && (
-                    <Text style={styles.errorText}>{errors[`contact${index}`]}</Text>
+                  {errors[`contactPhone${index}`] && (
+                    <Text style={styles.errorText}>{errors[`contactPhone${index}`]}</Text>
                   )}
                 </View>
               ))}
@@ -330,6 +356,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 8,
     marginLeft: 4,
+  },
+  contactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  contactPriority: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#E91E63',
+  },
+  priorityBadge: {
+    fontSize: 11,
+    color: '#E91E63',
+    backgroundColor: 'rgba(233, 30, 99, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   saveButton: {
     backgroundColor: '#E91E63',

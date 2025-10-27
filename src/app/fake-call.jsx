@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Phone, PhoneOff, User } from "lucide-react-native";
-import { Audio } from "expo-audio";
+import { Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
 import { Asset } from "expo-asset";
 
