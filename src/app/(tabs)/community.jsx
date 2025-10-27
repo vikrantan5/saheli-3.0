@@ -4,8 +4,9 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Alert,
   TextInput,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,18 +25,27 @@ import {
   MapPin,
   Clock,
   Search,
+  ThumbsUp,
   Shield,
-  Eye,
 } from "lucide-react-native";
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
-import ActionButton from "@/components/ActionButton";
+import PostCreationModal from "@/components/PostCreationModal";
+import { 
+  subscribeToPosts, 
+  upvotePost, 
+  hasUserUpvoted, 
+  isCriticalPost 
+} from "@/services/communityService";
+import { formatDistanceToNow } from 'date-fns';
 
 export default function CommunityScreen() {
   const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const theme = useTheme();
 
   const [fontsLoaded] = useFonts({
@@ -46,124 +56,45 @@ export default function CommunityScreen() {
 
   const categories = [
     { id: "all", label: "All Posts", icon: Users },
-    { id: "alert", label: "Safety Alerts", icon: AlertTriangle },
+    { id: "safety-alerts", label: "Safety Alerts", icon: AlertTriangle },
     { id: "support", label: "Support", icon: Heart },
     { id: "general", label: "General", icon: MessageCircle },
   ];
 
+  // Subscribe to real-time posts updates
   useEffect(() => {
-    loadCommunityPosts();
+    setIsLoading(true);
+    console.log('Setting up real-time posts subscription for category:', selectedCategory);
+    
+    const unsubscribe = subscribeToPosts(selectedCategory, (newPosts) => {
+      console.log('Received posts update:', newPosts.length);
+      setPosts(newPosts);
+      setIsLoading(false);
+    });
+
+    // Cleanup subscription on unmount or category change
+    return () => {
+      console.log('Unsubscribing from posts');
+      unsubscribe();
+    };
   }, [selectedCategory]);
 
-  const loadCommunityPosts = async () => {
-    try {
-      const response = await fetch(`/api/community/posts?category=${selectedCategory}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPosts(data.posts || []);
-      } else {
-        // Fallback to mock data
-        setPosts([
-          {
-            id: 1,
-            title: "Safe Walking Routes at Night",
-            content: "I wanted to share some well-lit routes I use when walking home from work. The main street has good lighting and regular police patrols.",
-            author: "Sarah J.",
-            postType: "general",
-            isAnonymous: false,
-            location: "Downtown District",
-            timestamp: "2 hours ago",
-            likes: 12,
-            comments: 3,
-          },
-          {
-            id: 2,
-            title: "Suspicious Activity Alert",
-            content: "Noticed someone following women in the downtown area around 8 PM. Please be cautious and travel in groups if possible.",
-            author: "Anonymous",
-            postType: "alert",
-            isAnonymous: true,
-            location: "5th Street & Main",
-            timestamp: "4 hours ago",
-            likes: 8,
-            comments: 5,
-          },
-          {
-            id: 3,
-            title: "Support Group Meeting",
-            content: "Monthly women's safety support group meeting this Thursday at 7 PM. All are welcome to share experiences and tips.",
-            author: "Maria G.",
-            postType: "support",
-            isAnonymous: false,
-            location: "Community Center",
-            timestamp: "1 day ago",
-            likes: 15,
-            comments: 7,
-          },
-        ]);
-      }
-    } catch (error) {
-      // Using fallback mock data (no backend API available)
-      setPosts([
-        {
-          id: 1,
-          title: "Safe Walking Routes at Night",
-          content: "I wanted to share some well-lit routes I use when walking home from work. The main street has good lighting and regular police patrols.",
-          author: "Sarah J.",
-          postType: "general",
-          isAnonymous: false,
-          location: "Downtown District",
-          timestamp: "2 hours ago",
-          likes: 12,
-          comments: 3,
-        },
-      ]);
-    }
-  };
-
   const handleCreatePost = () => {
-    Alert.alert(
-      "Create Post",
-      "Choose post type",
-      [
-        { text: "Safety Alert", onPress: () => createPost("alert") },
-        { text: "General Post", onPress: () => createPost("general") },
-        { text: "Support Request", onPress: () => createPost("support") },
-        { text: "Cancel", style: "cancel" },
-      ]
-    );
+    setShowPostModal(true);
   };
 
-  const createPost = (type) => {
-    Alert.alert(
-      "Create Post",
-      `Creating a ${type} post. In a real app, this would open a full post creation form.`,
-      [{ text: "OK" }]
-    );
-  };
-
-  const handleLikePost = async (postId) => {
+  const handleUpvote = async (postId) => {
     try {
-      const response = await fetch('/api/community/posts/like', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId }),
-      });
-
-      if (response.ok) {
-        // Update local state
-        setPosts(posts.map(post => 
-          post.id === postId ? { ...post, likes: post.likes + 1 } : post
-        ));
-      }
+      await upvotePost(postId);
+      // No need to update local state - real-time listener will handle it
     } catch (error) {
-      console.error('Failed to like post:', error);
+      console.error('Failed to upvote post:', error);
     }
   };
 
   const getPostTypeIcon = (type) => {
     switch (type) {
-      case "alert":
+      case "safety-alerts":
         return AlertTriangle;
       case "support":
         return Heart;
@@ -174,12 +105,22 @@ export default function CommunityScreen() {
 
   const getPostTypeColor = (type) => {
     switch (type) {
-      case "alert":
-        return theme.colors.warning;
+      case "safety-alerts":
+        return "#EF4444";
       case "support":
-        return theme.colors.success;
+        return "#10B981";
       default:
-        return theme.colors.text;
+        return "#6B7280";
+    }
+  };
+
+  const formatTimestamp = (timestamp) => {
+    try {
+      if (!timestamp) return 'Just now';
+      return formatDistanceToNow(timestamp, { addSuffix: true });
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
+      return 'Recently';
     }
   };
 
@@ -188,11 +129,10 @@ export default function CommunityScreen() {
   }
 
   const filteredPosts = posts.filter(post => {
-    const matchesCategory = selectedCategory === "all" || post.postType === selectedCategory;
     const matchesSearch = searchQuery === "" || 
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.content.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+      post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.username.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
   return (
@@ -249,6 +189,7 @@ export default function CommunityScreen() {
                 alignItems: "center",
               }}
               onPress={handleCreatePost}
+              data-testid="create-post-button"
             >
               <Plus size={24} color="#FFFFFF" strokeWidth={2} />
             </TouchableOpacity>
@@ -305,6 +246,7 @@ export default function CommunityScreen() {
                       gap: 6,
                     }}
                     onPress={() => setSelectedCategory(category.id)}
+                    data-testid={`category-${category.id}`}
                   >
                     <IconComponent
                       size={16}
@@ -327,79 +269,141 @@ export default function CommunityScreen() {
           </ScrollView>
         </View>
 
+        {/* Loading State */}
+        {isLoading && (
+          <View style={{ 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            paddingVertical: 48,
+          }}>
+            <ActivityIndicator size="large" color={theme.colors.success} />
+            <Text style={{
+              fontFamily: "Inter_400Regular",
+              fontSize: 14,
+              color: theme.colors.textSecondary,
+              marginTop: 12,
+            }}>
+              Loading posts...
+            </Text>
+          </View>
+        )}
+
         {/* Posts List */}
-        <View style={{ paddingHorizontal: 24 }}>
-          {filteredPosts.map((post, index) => {
-            const PostTypeIcon = getPostTypeIcon(post.postType);
-            return (
-              <View key={post.id}>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: theme.colors.elevated,
-                    borderRadius: 12,
-                    padding: 16,
-                    marginBottom: 16,
-                  }}
-                  activeOpacity={0.8}
-                >
-                  {/* Post Header */}
+        {!isLoading && (
+          <View style={{ paddingHorizontal: 24 }}>
+            {filteredPosts.map((post) => {
+              const PostTypeIcon = getPostTypeIcon(post.category);
+              const isCritical = isCriticalPost(post.upvotes);
+              const userHasUpvoted = hasUserUpvoted(post.upvoters);
+
+              return (
+                <View key={post.id}>
                   <View
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 12,
+                      backgroundColor: isCritical ? '#FEF2F2' : theme.colors.elevated,
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 16,
+                      borderWidth: isCritical ? 2 : 0,
+                      borderColor: isCritical ? '#EF4444' : 'transparent',
                     }}
+                    data-testid={`post-${post.id}`}
                   >
-                    <View
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor: getPostTypeColor(post.postType),
-                        justifyContent: "center",
-                        alignItems: "center",
-                        marginRight: 12,
-                      }}
-                    >
-                      <PostTypeIcon size={16} color="#FFFFFF" strokeWidth={2} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontFamily: "Inter_600SemiBold",
-                          fontSize: 16,
-                          color: theme.colors.text,
-                          marginBottom: 2,
-                        }}
-                      >
-                        {post.title}
-                      </Text>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <Text
-                          style={{
-                            fontFamily: "Inter_400Regular",
-                            fontSize: 12,
-                            color: theme.colors.textSecondary,
-                          }}
-                        >
-                          by {post.author}
-                        </Text>
-                        <Clock size={12} color={theme.colors.textTertiary} strokeWidth={1.5} style={{ marginLeft: 8, marginRight: 4 }} />
-                        <Text
-                          style={{
-                            fontFamily: "Inter_400Regular",
-                            fontSize: 12,
-                            color: theme.colors.textTertiary,
-                          }}
-                        >
-                          {post.timestamp}
+                    {/* Critical Alert Badge */}
+                    {isCritical && (
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: '#EF4444',
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        marginBottom: 12,
+                        alignSelf: 'flex-start',
+                      }}>
+                        <Shield size={14} color="#FFFFFF" strokeWidth={2} />
+                        <Text style={{
+                          fontFamily: 'Inter_600SemiBold',
+                          fontSize: 12,
+                          color: '#FFFFFF',
+                          marginLeft: 6,
+                        }}>
+                          CRITICAL ALERT - Needs Attention
                         </Text>
                       </View>
-                    </View>
-                    {post.isAnonymous && (
+                    )}
+
+                    {/* Post Header */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 12,
+                      }}
+                    >
                       <View
                         style={{
-                          backgroundColor: theme.colors.warning,
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: getPostTypeColor(post.category),
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginRight: 12,
+                        }}
+                      >
+                        <PostTypeIcon size={16} color="#FFFFFF" strokeWidth={2} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text
+                            style={{
+                              fontFamily: "Inter_600SemiBold",
+                              fontSize: 16,
+                              color: theme.colors.text,
+                            }}
+                          >
+                            {post.username}
+                          </Text>
+                          {post.isAnonymous && (
+                            <View
+                              style={{
+                                backgroundColor: '#F59E0B',
+                                borderRadius: 8,
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                marginLeft: 8,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontFamily: "Inter_500Medium",
+                                  fontSize: 10,
+                                  color: "#FFFFFF",
+                                }}
+                              >
+                                Anonymous
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                          <Clock size={12} color={theme.colors.textTertiary} strokeWidth={1.5} />
+                          <Text
+                            style={{
+                              fontFamily: "Inter_400Regular",
+                              fontSize: 12,
+                              color: theme.colors.textTertiary,
+                              marginLeft: 4,
+                            }}
+                          >
+                            {formatTimestamp(post.timestamp)}
+                          </Text>
+                        </View>
+                      </View>
+                      <View
+                        style={{
+                          backgroundColor: getPostTypeColor(post.category) + '20',
                           borderRadius: 12,
                           paddingHorizontal: 8,
                           paddingVertical: 4,
@@ -409,172 +413,144 @@ export default function CommunityScreen() {
                           style={{
                             fontFamily: "Inter_500Medium",
                             fontSize: 10,
-                            color: "#FFFFFF",
+                            color: getPostTypeColor(post.category),
+                            textTransform: "capitalize",
                           }}
                         >
-                          Anonymous
+                          {post.category.replace('-', ' ')}
                         </Text>
                       </View>
+                    </View>
+
+                    {/* Post Content */}
+                    <Text
+                      style={{
+                        fontFamily: "Inter_400Regular",
+                        fontSize: 14,
+                        color: theme.colors.text,
+                        lineHeight: 20,
+                        marginBottom: post.imageUrl ? 12 : 0,
+                      }}
+                    >
+                      {post.content}
+                    </Text>
+
+                    {/* Post Image */}
+                    {post.imageUrl && (
+                      <Image
+                        source={{ uri: post.imageUrl }}
+                        style={{
+                          width: '100%',
+                          height: 200,
+                          borderRadius: 12,
+                          marginBottom: 12,
+                        }}
+                        resizeMode="cover"
+                      />
                     )}
-                  </View>
 
-                  {/* Post Content */}
-                  <Text
-                    style={{
-                      fontFamily: "Inter_400Regular",
-                      fontSize: 14,
-                      color: theme.colors.text,
-                      lineHeight: 20,
-                      marginBottom: 12,
-                    }}
-                  >
-                    {post.content}
-                  </Text>
-
-                  {/* Location */}
-                  {post.location && (
+                    {/* Post Actions */}
                     <View
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        marginBottom: 12,
+                        paddingTop: 12,
+                        borderTopWidth: 1,
+                        borderTopColor: theme.colors.divider,
                       }}
                     >
-                      <MapPin size={14} color={theme.colors.textSecondary} strokeWidth={1.5} />
-                      <Text
+                      <TouchableOpacity
                         style={{
-                          fontFamily: "Inter_400Regular",
-                          fontSize: 12,
-                          color: theme.colors.textSecondary,
-                          marginLeft: 4,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: userHasUpvoted ? '#10B981' : theme.colors.buttonBackground,
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
                         }}
+                        onPress={() => handleUpvote(post.id)}
+                        data-testid={`upvote-${post.id}`}
                       >
-                        {post.location}
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Post Actions */}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      paddingTop: 12,
-                      borderTopWidth: 1,
-                      borderTopColor: theme.colors.divider,
-                    }}
-                  >
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                      }}
-                      onPress={() => handleLikePost(post.id)}
-                    >
-                      <Heart size={16} color={theme.colors.textSecondary} strokeWidth={1.5} />
-                      <Text
-                        style={{
-                          fontFamily: "Inter_400Regular",
-                          fontSize: 12,
-                          color: theme.colors.textSecondary,
-                          marginLeft: 4,
-                        }}
-                      >
-                        {post.likes}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                      }}
-                    >
-                      <MessageCircle size={16} color={theme.colors.textSecondary} strokeWidth={1.5} />
-                      <Text
-                        style={{
-                          fontFamily: "Inter_400Regular",
-                          fontSize: 12,
-                          color: theme.colors.textSecondary,
-                          marginLeft: 4,
-                        }}
-                      >
-                        {post.comments}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <View
-                      style={{
-                        backgroundColor: theme.colors.buttonBackground,
-                        borderRadius: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontFamily: "Inter_500Medium",
-                          fontSize: 10,
-                          color: theme.colors.text,
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {post.postType}
-                      </Text>
+                        <ThumbsUp 
+                          size={16} 
+                          color={userHasUpvoted ? '#FFFFFF' : theme.colors.text} 
+                          strokeWidth={1.5}
+                          fill={userHasUpvoted ? '#FFFFFF' : 'transparent'}
+                        />
+                        <Text
+                          style={{
+                            fontFamily: "Inter_600SemiBold",
+                            fontSize: 14,
+                            color: userHasUpvoted ? '#FFFFFF' : theme.colors.text,
+                            marginLeft: 6,
+                          }}
+                        >
+                          {post.upvotes} {post.upvotes === 1 ? 'Upvote' : 'Upvotes'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
+                </View>
+              );
+            })}
 
-          {filteredPosts.length === 0 && (
-            <View
-              style={{
-                alignItems: "center",
-                paddingVertical: 48,
-              }}
-            >
+            {filteredPosts.length === 0 && !isLoading && (
               <View
                 style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 30,
-                  backgroundColor: theme.colors.buttonBackground,
-                  justifyContent: "center",
                   alignItems: "center",
-                  marginBottom: 16,
+                  paddingVertical: 48,
                 }}
               >
-                <Users size={28} color={theme.colors.textSecondary} strokeWidth={1.5} />
+                <View
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: theme.colors.buttonBackground,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  <Users size={28} color={theme.colors.textSecondary} strokeWidth={1.5} />
+                </View>
+                <Text
+                  style={{
+                    fontFamily: "Inter_600SemiBold",
+                    fontSize: 18,
+                    color: theme.colors.text,
+                    marginBottom: 8,
+                    textAlign: "center",
+                  }}
+                >
+                  No posts found
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 14,
+                    color: theme.colors.textSecondary,
+                    textAlign: "center",
+                    lineHeight: 20,
+                  }}
+                >
+                  Be the first to share something{"\n"}with the community
+                </Text>
               </View>
-              <Text
-                style={{
-                  fontFamily: "Inter_600SemiBold",
-                  fontSize: 18,
-                  color: theme.colors.text,
-                  marginBottom: 8,
-                  textAlign: "center",
-                }}
-              >
-                No posts found
-              </Text>
-              <Text
-                style={{
-                  fontFamily: "Inter_400Regular",
-                  fontSize: 14,
-                  color: theme.colors.textSecondary,
-                  textAlign: "center",
-                  lineHeight: 20,
-                }}
-              >
-                Be the first to share something{"\n"}with the community
-              </Text>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
+        )}
       </ScrollView>
+
+      {/* Post Creation Modal */}
+      <PostCreationModal
+        visible={showPostModal}
+        onClose={() => setShowPostModal(false)}
+        onPostCreated={() => {
+          // Posts will update automatically via real-time listener
+          console.log('Post created successfully');
+        }}
+      />
     </View>
   );
 }

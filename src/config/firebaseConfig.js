@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -96,5 +97,15 @@ if (!auth) {
   throw new Error('Firebase Auth is not initialized. Please check your Firebase Console settings and ensure Email/Password authentication is enabled.');
 }
 
-export { auth, db };
+// Initialize Firebase Storage
+let storage;
+try {
+  storage = getStorage(app);
+  console.log('Firebase Storage initialized successfully');
+} catch (error) {
+  console.error('Firebase Storage initialization error:', error);
+  console.warn('Storage features may not be available');
+}
+
+export { auth, db, storage };
 export default app;
