@@ -101,3 +101,23 @@ export const updateUserDetails = async (uid, userData) => {
     throw error;
   }
 };
+
+/**
+ * Set user role (admin or user)
+ * @param {string} uid - User ID from Firebase Auth
+ * @param {string} role - Role ('admin' or 'user')
+ * @returns {Promise<void>}
+ */
+export const setUserRole = async (uid, role) => {
+  try {
+    const userRef = doc(db, 'users', uid);
+    await setDoc(userRef, {
+      role: role,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    console.log('User role updated successfully to:', role);
+  } catch (error) {
+    console.error('Error setting user role:', error);
+    throw error;
+  }
+};

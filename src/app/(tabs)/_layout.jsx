@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Shield, MapPin, Users, AlertTriangle, Settings } from "lucide-react-native";
+import { Shield, MapPin, Users, AlertTriangle, Settings, ShoppingBag } from "lucide-react-native";
 import { useTheme } from "@/utils/useTheme";
 
 export default function TabLayout() {
@@ -43,6 +43,15 @@ export default function TabLayout() {
           title: "Safe Map",
           tabBarIcon: ({ color, size }) => (
             <MapPin color={color} size={24} strokeWidth={1.5} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="store"
+        options={{
+          title: "Store",
+          tabBarIcon: ({ color, size }) => (
+            <ShoppingBag color={color} size={24} strokeWidth={1.5} />
           ),
         }}
       />

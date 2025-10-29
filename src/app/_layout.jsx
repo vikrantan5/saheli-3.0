@@ -98,6 +98,8 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(admin)" />
+      <Stack.Screen name="store" />
       <Stack.Screen name="fake-call" />
       <Stack.Screen name="in-call" />
     </Stack>
