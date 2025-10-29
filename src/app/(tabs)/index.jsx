@@ -192,7 +192,7 @@ export default function SafetyHomeScreen() {
                 marginBottom: 4,
               }}
             >
-              SafeGuard
+              Saheli
             </Text>
             <Text
               style={{

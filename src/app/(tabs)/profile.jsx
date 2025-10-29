@@ -37,6 +37,7 @@ import ActionButton from "@/components/ActionButton";
 import { auth } from "@/config/firebaseConfig";
 import { getUserDetails } from "@/services/userService";
 import { getUserPostCount } from "@/services/communityService";
+import { getUserAlertCount } from "@/services/safetyAlertService";
 import { signOut } from "firebase/auth";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router";
@@ -50,6 +51,7 @@ export default function ProfileScreen() {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [postsCount, setPostsCount] = useState(0);
+  const [alertsCount, setAlertsCount] = useState(0);
   const theme = useTheme();
 
   const [fontsLoaded] = useFonts({
@@ -68,6 +70,7 @@ export default function ProfileScreen() {
       const user = auth.currentUser;
       if (user) {
         loadPostCount(user.uid);
+        loadAlertCount(user.uid);
       }
     }, [])
   );
@@ -78,6 +81,15 @@ export default function ProfileScreen() {
       setPostsCount(count);
     } catch (error) {
       console.error("Error loading post count:", error);
+    }
+  };
+
+  const loadAlertCount = async (userId) => {
+    try {
+      const count = await getUserAlertCount(userId);
+      setAlertsCount(count);
+    } catch (error) {
+      console.error("Error loading alert count:", error);
     }
   };
 
@@ -106,6 +118,7 @@ export default function ProfileScreen() {
 
         // Load post count
         await loadPostCount(user.uid);
+        await loadAlertCount(user.uid);
       }
     } catch (error) {
       console.error("Error loading user data:", error);
@@ -391,8 +404,9 @@ export default function ProfileScreen() {
                     fontSize: 20,
                     color: theme.colors.text,
                   }}
+                  data-testid="alert-count"
                 >
-                  0
+                  {alertsCount}
                 </Text>
                 <Text
                   style={{
@@ -402,7 +416,7 @@ export default function ProfileScreen() {
                     textAlign: "center",
                   }}
                 >
-                  Alerts{"\n"}Shared
+                  Safety{"\n"}Alerts
                 </Text>
               </View>
             </View>
