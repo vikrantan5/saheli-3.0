@@ -6,6 +6,7 @@ import {
   ScrollView,
   Alert,
   Vibration,
+  Linking,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,9 +28,13 @@ import {
   Mic,
   Eye,
   Activity,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useTheme } from "@/utils/useTheme";
+import { useThemeContext } from "@/utils/ThemeContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
 import AlarmModal from "@/components/AlarmModal";
@@ -43,6 +48,7 @@ export default function SafetyHomeScreen() {
   const [nearbyResources, setNearbyResources] = useState([]);
   const [isAlarmActive, setIsAlarmActive] = useState(false);
   const theme = useTheme();
+  const { toggleTheme, themeMode } = useThemeContext();
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -52,11 +58,26 @@ export default function SafetyHomeScreen() {
   });
 
   useEffect(() => {
-    // Simulate fetching nearby safety resources
+    // Simulate fetching nearby safety resources with phone numbers
     setNearbyResources([
-      { type: "Police Station", distance: "0.8 km", name: "Central Police" },
-      { type: "Hospital", distance: "1.2 km", name: "City General" },
-      { type: "Safe Haven", distance: "0.3 km", name: "Community Center" },
+      { 
+        type: "Police Station", 
+        distance: "0.8 km", 
+        name: "Central Police",
+        phone: "100" // Emergency police number
+      },
+      { 
+        type: "Hospital", 
+        distance: "1.2 km", 
+        name: "City General",
+        phone: "102" // Emergency ambulance number
+      },
+      { 
+        type: "Safe Haven", 
+        distance: "0.3 km", 
+        name: "Community Center",
+        phone: "1091" // Women helpline number
+      },
     ]);
   }, []);
 
@@ -151,6 +172,63 @@ export default function SafetyHomeScreen() {
     Vibration.vibrate([500, 200, 500, 200, 500]);
   };
 
+  const handleCallResource = (resource) => {
+    Alert.alert(
+      `Call ${resource.name}?`,
+      `Do you want to call ${resource.type} at ${resource.phone}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Call Now",
+          onPress: async () => {
+            try {
+              const phoneUrl = `tel:${resource.phone}`;
+              const canOpen = await Linking.canOpenURL(phoneUrl);
+              
+              if (canOpen) {
+                await Linking.openURL(phoneUrl);
+              } else {
+                Alert.alert("Error", "Cannot make phone calls on this device");
+              }
+            } catch (error) {
+              console.error("Error making call:", error);
+              Alert.alert("Error", "Failed to make call. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const getThemeIcon = () => {
+    switch (themeMode) {
+      case 'light':
+        return Sun;
+      case 'dark':
+        return Moon;
+      case 'system':
+        return Monitor;
+      default:
+        return Sun;
+    }
+  };
+
+  const getThemeLabel = () => {
+    switch (themeMode) {
+      case 'light':
+        return 'Light';
+      case 'dark':
+        return 'Dark';
+      case 'system':
+        return 'Auto';
+      default:
+        return 'Auto';
+    }
+  };
+
   if (!fontsLoaded) {
     return <LoadingScreen />;
   }
@@ -183,7 +261,7 @@ export default function SafetyHomeScreen() {
             marginBottom: 32,
           }}
         >
-          <View>
+          <View style={{ flex: 1 }}>
             <Text
               style={{
                 fontFamily: "Inter_700Bold",
@@ -205,23 +283,46 @@ export default function SafetyHomeScreen() {
             </Text>
           </View>
 
-          <View
-            style={{
-              backgroundColor: theme.colors.safe,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 16,
-            }}
-          >
-            <Text
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            {/* Theme Toggle Button */}
+            <TouchableOpacity
+              onPress={toggleTheme}
               style={{
-                fontFamily: "Inter_500Medium",
-                fontSize: 12,
-                color: "#FFFFFF",
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: theme.colors.elevated,
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 8,
+              }}
+              data-testid="theme-toggle-button"
+            >
+              {(() => {
+                const ThemeIcon = getThemeIcon();
+                return <ThemeIcon size={20} color={theme.colors.text} strokeWidth={2} />;
+              })()}
+            </TouchableOpacity>
+
+            {/* Safety Status */}
+            <View
+              style={{
+                backgroundColor: theme.colors.safe,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
               }}
             >
-              {safetyStatus}
-            </Text>
+              <Text
+                style={{
+                  fontFamily: "Inter_500Medium",
+                  fontSize: 12,
+                  color: "#FFFFFF",
+                }}
+              >
+                {safetyStatus}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -530,6 +631,8 @@ export default function SafetyHomeScreen() {
                   alignItems: "center",
                   paddingVertical: 12,
                 }}
+                onPress={() => handleCallResource(resource)}
+                data-testid={`call-resource-${index}`}
               >
                 <View
                   style={{
@@ -565,7 +668,28 @@ export default function SafetyHomeScreen() {
                     {resource.type} • {resource.distance}
                   </Text>
                 </View>
-                <Phone size={16} color={theme.colors.textSecondary} strokeWidth={1.5} />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: theme.colors.success,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                  }}
+                >
+                  <Phone size={14} color="#FFFFFF" strokeWidth={1.5} />
+                  <Text
+                    style={{
+                      fontFamily: "Inter_500Medium",
+                      fontSize: 12,
+                      color: "#FFFFFF",
+                      marginLeft: 4,
+                    }}
+                  >
+                    Call
+                  </Text>
+                </View>
               </TouchableOpacity>
               {index < nearbyResources.length - 1 && (
                 <View

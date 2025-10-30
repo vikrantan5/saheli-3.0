@@ -61,14 +61,29 @@ export default function FakeCallScreen() {
         shouldDuckAndroid: true,
       });
 
-      // Load local ringtone
+      // Load ringtone using proper Expo asset loading for Expo Go compatibility
+      const ringtoneAsset = Asset.fromModule(require('../../assets/audio/ringtone.mp3'));
+      await ringtoneAsset.downloadAsync();
+      
       const { sound: ringtone } = await Audio.Sound.createAsync(
-        require("@/assets/audio/ringtone.mp3"),
-        { shouldPlay: true, isLooping: true, volume: 0.6 }
+        { uri: ringtoneAsset.localUri || ringtoneAsset.uri },
+        { shouldPlay: true, isLooping: true, volume: 0.8 }
       );
       setSound(ringtone);
+      console.log('✅ Ringtone playing successfully');
     } catch (error) {
       console.log("Error playing ringtone:", error);
+      // Fallback: try direct require
+      try {
+        const { sound: ringtone } = await Audio.Sound.createAsync(
+          require('../../assets/audio/ringtone.mp3'),
+          { shouldPlay: true, isLooping: true, volume: 0.8 }
+        );
+        setSound(ringtone);
+        console.log('✅ Ringtone playing with fallback method');
+      } catch (fallbackError) {
+        console.log("Fallback ringtone error:", fallbackError);
+      }
     }
   };
 

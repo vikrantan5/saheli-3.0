@@ -12,6 +12,7 @@ import {
 import { AlertTriangle, X } from "lucide-react-native";
 import { Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
+import { Asset } from "expo-asset";
 
 const { width } = Dimensions.get("window");
 
@@ -43,9 +44,12 @@ export default function AlarmModal({ visible, onClose }) {
         playThroughEarpieceAndroid: false,
       });
 
-      // Load local alarm sound
+      // Load alarm using proper Expo asset loading for Expo Go compatibility
+      const alarmAsset = Asset.fromModule(require('../../assets/audio/alarm.mp3'));
+      await alarmAsset.downloadAsync();
+      
       const { sound: alarmSound } = await Audio.Sound.createAsync(
-        require("@/assets/audio/alarm.mp3"),
+        { uri: alarmAsset.localUri || alarmAsset.uri },
         { 
           shouldPlay: true, 
           isLooping: true, 
@@ -56,11 +60,29 @@ export default function AlarmModal({ visible, onClose }) {
       // Set to maximum volume
       await alarmSound.setVolumeAsync(1.0);
       setSound(alarmSound);
+      console.log('✅ Alarm playing successfully');
 
       // Start vibration pattern (vibrate 500ms, pause 200ms, repeat)
       Vibration.vibrate([500, 200], true);
     } catch (error) {
       console.log("Error starting alarm:", error);
+      // Fallback: try direct require
+      try {
+        const { sound: alarmSound } = await Audio.Sound.createAsync(
+          require('../../assets/audio/alarm.mp3'),
+          { 
+            shouldPlay: true, 
+            isLooping: true, 
+            volume: 1.0
+          }
+        );
+        await alarmSound.setVolumeAsync(1.0);
+        setSound(alarmSound);
+        Vibration.vibrate([500, 200], true);
+        console.log('✅ Alarm playing with fallback method');
+      } catch (fallbackError) {
+        console.log("Fallback alarm error:", fallbackError);
+      }
     }
   };
 

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebaseConfig';
 import { getUserDetails } from '@/services/userService';
+import { ThemeProvider } from '@/utils/ThemeContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -102,16 +103,20 @@ function RootLayoutNav() {
       <Stack.Screen name="store" />
       <Stack.Screen name="fake-call" />
       <Stack.Screen name="in-call" />
+      <Stack.Screen name="geofences" />
+      <Stack.Screen name="emergency-contacts" />
     </Stack>
   );
 }
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <RootLayoutNav />
-      </GestureHandlerRootView>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <RootLayoutNav />
+        </GestureHandlerRootView>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

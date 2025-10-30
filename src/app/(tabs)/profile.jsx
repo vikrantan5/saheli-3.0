@@ -132,11 +132,7 @@ export default function ProfileScreen() {
   };
 
   const handleGeoFences = () => {
-    Alert.alert(
-      "Geo-fences",
-      "Set up safety boundaries and get notified when entering/leaving areas.",
-      [{ text: "OK" }]
-    );
+    router.push("/geofences");
   };
 
   const handleVoiceCommands = () => {

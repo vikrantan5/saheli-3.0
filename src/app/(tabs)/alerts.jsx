@@ -28,6 +28,8 @@ import {
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
+import { subscribeToSafetyMarkers } from "@/services/safetyMapService";
+import { auth } from "@/config/firebaseConfig";
 
 export default function AlertsScreen() {
   const insets = useSafeAreaInsets();
@@ -50,7 +52,79 @@ export default function AlertsScreen() {
 
   useEffect(() => {
     loadAlerts();
+    
+    // Subscribe to safety markers from map
+    const unsubscribe = subscribeToSafetyMarkers((markers) => {
+      // Convert markers to alerts format
+      const mapAlerts = markers.map(marker => {
+        const timeAgo = getTimeAgo(marker.timestamp);
+        return {
+          id: `marker_${marker.id}`,
+          type: getMarkerAlertType(marker.status),
+          description: marker.note || `${marker.status.toUpperCase()} zone marked by community member`,
+          location: `${marker.coordinates.latitude.toFixed(4)}, ${marker.coordinates.longitude.toFixed(4)}`,
+          coordinates: marker.coordinates,
+          severity: getMarkerSeverity(marker.status),
+          status: "active",
+          timestamp: timeAgo,
+          reporter: "Safety Map User",
+          isMyAlert: marker.userId === auth.currentUser?.uid,
+          isFromMap: true,
+        };
+      });
+      
+      // Combine with existing alerts
+      setAlerts(prevAlerts => {
+        // Filter out old map alerts
+        const nonMapAlerts = prevAlerts.filter(alert => !alert.isFromMap);
+        // Add new map alerts
+        return [...mapAlerts, ...nonMapAlerts];
+      });
+    });
+
+    return () => unsubscribe();
   }, []);
+
+  const getTimeAgo = (timestamp) => {
+    if (!timestamp) return "Just now";
+    const now = new Date();
+    const past = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    const diffMs = now - past;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  };
+
+  const getMarkerAlertType = (status) => {
+    switch (status) {
+      case "unsafe":
+        return "Danger Zone Alert";
+      case "caution":
+        return "Caution Zone Alert";
+      case "safe":
+        return "Safe Zone Update";
+      default:
+        return "Safety Update";
+    }
+  };
+
+  const getMarkerSeverity = (status) => {
+    switch (status) {
+      case "unsafe":
+        return "high";
+      case "caution":
+        return "medium";
+      case "safe":
+        return "info";
+      default:
+        return "info";
+    }
+  };
 
   const loadAlerts = async () => {
     try {
