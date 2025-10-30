@@ -1,6 +1,7 @@
 import { calculateDistance } from './safetyMapService';
+import ENV from '../config/env';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDKz4KM0oHphvPQtM7DhG9QfpaHp4ql4bM';
+const GOOGLE_MAPS_API_KEY = ENV.GOOGLE_MAPS_API_KEY;
 
 /**
  * Calculate weighted safety score for a route segment

@@ -4,16 +4,17 @@ import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebas
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import ENV from './env';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAjQ2V99wxXwrHW8XlOngI6ob3PV7X-0Cc",
-  authDomain: "saheli1.firebaseapp.com",
-  projectId: "saheli1",
-  storageBucket: "saheli1.firebasestorage.app",
-  messagingSenderId: "511991995707",
-  appId: "1:511991995707:web:bb6e460878c49376e32b1e",
-  measurementId: "G-V2EW0GN7H1"
+  apiKey: ENV.FIREBASE_API_KEY,
+  authDomain: ENV.FIREBASE_AUTH_DOMAIN,
+  projectId: ENV.FIREBASE_PROJECT_ID,
+  storageBucket: ENV.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: ENV.FIREBASE_MESSAGING_SENDER_ID,
+  appId: ENV.FIREBASE_APP_ID,
+  measurementId: ENV.FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase App (only once)

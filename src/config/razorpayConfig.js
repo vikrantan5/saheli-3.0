@@ -1,7 +1,9 @@
+import ENV from './env';
+
 // Razorpay Configuration
 export const RAZORPAY_CONFIG = {
-  key_id: 'rzp_test_RVeELbQdxuBBiv',
-  key_secret: 'CtWqj2m5dczsvq3fWC9CJvYO',
+  key_id: ENV.RAZORPAY_KEY_ID,
+  key_secret: ENV.RAZORPAY_KEY_SECRET,
   currency: 'INR',
   name: 'Saheli Store',
   description: 'Safety Gadgets for Women',
