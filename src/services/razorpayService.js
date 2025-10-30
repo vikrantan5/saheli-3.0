@@ -1,5 +1,15 @@
 import { RAZORPAY_CONFIG } from '../config/razorpayConfig';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
+
+// Note: react-native-razorpay requires custom native code (not available in Expo Go)
+// For Expo Go, we'll use web-based approach for mobile
+let RazorpayCheckout = null;
+try {
+  // Only import if available (custom dev client)
+  RazorpayCheckout = require('react-native-razorpay').default;
+} catch (e) {
+  console.log('react-native-razorpay not available, using web-based approach');
+}
 
 /**
  * Create Razorpay order (Mock implementation for client-side)
@@ -72,34 +82,64 @@ export const verifyPaymentSignature = async (orderId, paymentId, signature) => {
  */
 export const openRazorpayCheckout = async (options) => {
   try {
-    if (Platform.OS === 'web') {
-      // For web platform, use Razorpay's Web SDK
-      return new Promise((resolve, reject) => {
-        // Load Razorpay script if not already loaded
-        if (!window.Razorpay) {
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          script.onload = () => {
-            openCheckout(options, resolve, reject);
-          };
-          script.onerror = () => {
-            reject(new Error('Failed to load Razorpay SDK'));
-          };
-          document.body.appendChild(script);
-        } else {
-          openCheckout(options, resolve, reject);
-        }
-      });
-    } else {
-      // For React Native, use react-native-razorpay package
-      // Note: You'll need to install react-native-razorpay package
-      // yarn add react-native-razorpay
-      // For now, we'll show an alert
-      console.warn('Razorpay native integration requires react-native-razorpay package');
-      throw new Error('Native Razorpay checkout not implemented. Please use web version.');
+    // For native modules (custom dev client with react-native-razorpay)
+    if (Platform.OS !== 'web' && RazorpayCheckout) {
+      console.log('Opening native Razorpay checkout...');
+      
+      const checkoutOptions = {
+        description: options.description || RAZORPAY_CONFIG.description,
+        image: 'https://i.imgur.com/3g7nmJC.png',
+        currency: options.currency || RAZORPAY_CONFIG.currency,
+        key: RAZORPAY_CONFIG.key_id,
+        amount: options.amount,
+        name: options.name || RAZORPAY_CONFIG.name,
+        order_id: options.order_id,
+        prefill: {
+          name: options.prefill?.name || '',
+          contact: options.prefill?.contact || '',
+        },
+        theme: { color: RAZORPAY_CONFIG.theme.color }
+      };
+      
+      const data = await RazorpayCheckout.open(checkoutOptions);
+      
+      console.log('✅ Payment successful:', data);
+      
+      return {
+        razorpay_order_id: data.razorpay_order_id,
+        razorpay_payment_id: data.razorpay_payment_id,
+        razorpay_signature: data.razorpay_signature,
+      };
     }
+    
+    // For web platform OR Expo Go (web-based approach)
+    return new Promise((resolve, reject) => {
+      // Load Razorpay script if not already loaded
+      if (typeof window !== 'undefined' && !window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => {
+          openCheckout(options, resolve, reject);
+        };
+        script.onerror = () => {
+          reject(new Error('Failed to load Razorpay SDK'));
+        };
+        document.body.appendChild(script);
+      } else if (typeof window !== 'undefined') {
+        openCheckout(options, resolve, reject);
+      } else {
+        // Fallback for testing in Expo Go without web view
+        reject(new Error('Razorpay checkout requires web browser. Please use Expo web or create a custom development build.'));
+      }
+    });
   } catch (error) {
     console.error('❌ Error opening Razorpay checkout:', error);
+    
+    // Handle user cancellation
+    if (RazorpayCheckout && error.code === RazorpayCheckout.PAYMENT_CANCELLED) {
+      throw new Error('Payment cancelled by user');
+    }
+    
     throw error;
   }
 };

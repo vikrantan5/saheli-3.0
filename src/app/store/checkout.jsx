@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { auth } from '@/config/firebaseConfig';
 import { getCart, clearCart } from '@/services/cartService';
 import { getProductById, updateStock } from '@/services/productService';
@@ -152,8 +153,9 @@ export default function CheckoutScreen() {
         shippingAddress,
       });
 
-      // Step 3: Open Razorpay checkout
+      // Step 3: Handle payment based on platform
       if (Platform.OS === 'web') {
+        // Web-based checkout
         try {
           const paymentResponse = await openRazorpayCheckout({
             order_id: razorpayOrder.id,
@@ -164,38 +166,7 @@ export default function CheckoutScreen() {
             },
           });
 
-          // Step 4: Verify payment (mock)
-          const isVerified = await verifyPaymentSignature(
-            paymentResponse.razorpay_order_id,
-            paymentResponse.razorpay_payment_id,
-            paymentResponse.razorpay_signature
-          );
-
-          if (isVerified) {
-            // Step 5: Update order status
-            await updateOrderPaymentStatus(
-              orderId,
-              paymentResponse.razorpay_payment_id,
-              'paid'
-            );
-
-            // Step 6: Update product stock
-            for (const item of cart.items) {
-              await updateStock(item.productId, -item.quantity);
-            }
-
-            // Step 7: Clear cart
-            await clearCart(user.uid);
-
-            Alert.alert('Success', 'Order placed successfully!', [
-              {
-                text: 'View Orders',
-                onPress: () => router.replace('/store/orders'),
-              },
-            ]);
-          } else {
-            Alert.alert('Error', 'Payment verification failed');
-          }
+          await handlePaymentSuccess(paymentResponse, orderId);
         } catch (error) {
           if (error.message === 'Payment cancelled by user') {
             Alert.alert('Cancelled', 'Payment was cancelled');
@@ -204,15 +175,47 @@ export default function CheckoutScreen() {
           }
         }
       } else {
-        // For mobile, show alert (Razorpay native integration required)
+        // For Expo Go mobile - Use a simplified approach with WebBrowser
+        // In production, you'd create a custom payment page
         Alert.alert(
-          'Payment Required',
-          `Total Amount: ${formatAmount(totalAmount)}\n\nNote: Native mobile payment integration requires react-native-razorpay package. For now, the order has been created with pending status.`,
+          'Payment Ready',
+          `Order created successfully!\n\nTotal: ${formatAmount(totalAmount)}\n\nIn Expo Go, native payments aren't supported. Please use one of these options:\n\n1. Test on web (npx expo start --web)\n2. Create a custom development build\n\nFor now, we'll mark this as a test order.`,
           [
             {
-              text: 'OK',
-              onPress: () => router.replace('/store/orders'),
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => {
+                setProcessing(false);
+              }
             },
+            {
+              text: 'Simulate Payment (Test)',
+              onPress: async () => {
+                try {
+                  // Simulate payment for testing in Expo Go
+                  const mockPaymentId = `pay_test_${Date.now()}`;
+                  await updateOrderPaymentStatus(orderId, mockPaymentId, 'paid');
+                  
+                  // Update stock
+                  for (const item of cart.items) {
+                    await updateStock(item.productId, -item.quantity);
+                  }
+                  
+                  // Clear cart
+                  await clearCart(user.uid);
+                  
+                  Alert.alert('Test Order Complete', 'Order has been placed (test mode)', [
+                    {
+                      text: 'View Orders',
+                      onPress: () => router.replace('/store/orders'),
+                    },
+                  ]);
+                } catch (error) {
+                  console.error('Error completing test order:', error);
+                  Alert.alert('Error', 'Failed to complete order');
+                }
+              }
+            }
           ]
         );
       }
@@ -220,7 +223,46 @@ export default function CheckoutScreen() {
       console.error('Error placing order:', error);
       Alert.alert('Error', 'Failed to place order. Please try again.');
     } finally {
-      setProcessing(false);
+      if (Platform.OS === 'web') {
+        setProcessing(false);
+      }
+    }
+  };
+
+  const handlePaymentSuccess = async (paymentResponse, orderId) => {
+    const user = auth.currentUser;
+    
+    // Verify payment (mock)
+    const isVerified = await verifyPaymentSignature(
+      paymentResponse.razorpay_order_id,
+      paymentResponse.razorpay_payment_id,
+      paymentResponse.razorpay_signature
+    );
+
+    if (isVerified) {
+      // Update order status
+      await updateOrderPaymentStatus(
+        orderId,
+        paymentResponse.razorpay_payment_id,
+        'paid'
+      );
+
+      // Update product stock
+      for (const item of cart.items) {
+        await updateStock(item.productId, -item.quantity);
+      }
+
+      // Clear cart
+      await clearCart(user.uid);
+
+      Alert.alert('Success', 'Order placed successfully!', [
+        {
+          text: 'View Orders',
+          onPress: () => router.replace('/store/orders'),
+        },
+      ]);
+    } else {
+      Alert.alert('Error', 'Payment verification failed');
     }
   };
 
