@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { getYouTubeVideoId } from '@/services/videosService';
@@ -12,6 +12,16 @@ export default function YouTubePlayer({ youtubeUrl, onReady, onError, style }) {
 
   const videoId = getYouTubeVideoId(youtubeUrl);
 
+  // Auto-play when component mounts
+  useEffect(() => {
+    if (videoId) {
+      const timer = setTimeout(() => {
+        setPlaying(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [videoId]);
+
   const onStateChange = useCallback((state) => {
     if (state === 'ended') {
       setPlaying(false);
@@ -20,6 +30,8 @@ export default function YouTubePlayer({ youtubeUrl, onReady, onError, style }) {
       setLoading(false);
     } else if (state === 'paused') {
       setPlaying(false);
+    } else if (state === 'buffering') {
+      setLoading(false);
     }
   }, []);
 
@@ -51,7 +63,7 @@ export default function YouTubePlayer({ youtubeUrl, onReady, onError, style }) {
       )}
       <YoutubePlayer
         ref={playerRef}
-        height={220}
+        height={250}
         width={SCREEN_WIDTH}
         videoId={videoId}
         play={playing}
@@ -62,12 +74,17 @@ export default function YouTubePlayer({ youtubeUrl, onReady, onError, style }) {
           androidLayerType: 'hardware',
           allowsFullscreenVideo: true,
           allowsInlineMediaPlayback: true,
+          mediaPlaybackRequiresUserAction: false,
+          javaScriptEnabled: true,
+          domStorageEnabled: true,
         }}
         initialPlayerParams={{
-          modestbranding: true,
+          modestbranding: 1,
           showClosedCaptions: false,
-          rel: false,
-          loop: false,
+          rel: 0,
+          loop: 0,
+          controls: 1,
+          preventFullScreen: false,
         }}
       />
     </View>

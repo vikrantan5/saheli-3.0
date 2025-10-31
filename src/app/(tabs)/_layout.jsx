@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Shield, MapPin, Users, AlertTriangle, Settings, ShoppingBag } from "lucide-react-native";
+import { Shield, MapPin, Users, ShoppingBag, Video } from "lucide-react-native";
 import { useTheme } from "@/utils/useTheme";
 
 export default function TabLayout() {
@@ -65,21 +65,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="videos"
+        options={{
+          title: "Videos",
+          tabBarIcon: ({ color, size }) => (
+            <Video color={color} size={24} strokeWidth={1.5} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="alerts"
         options={{
-          title: "Alerts",
-          tabBarIcon: ({ color, size }) => (
-            <AlertTriangle color={color} size={24} strokeWidth={1.5} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Settings color={color} size={24} strokeWidth={1.5} />
-          ),
+          href: null,
         }}
       />
     </Tabs>
