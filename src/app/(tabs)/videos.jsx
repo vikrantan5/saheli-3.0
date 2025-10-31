@@ -21,8 +21,8 @@ import { Video, X, Play } from 'lucide-react-native';
 import { useTheme } from '@/utils/useTheme';
 import LoadingScreen from '@/components/LoadingScreen';
 import TopNavbar from '@/components/TopNavbar';
-import { WebView } from 'react-native-webview';
-import { getAllVideos, getYouTubeEmbedUrl } from '@/services/videosService';
+import YouTubePlayer from '@/components/YouTubePlayer';
+import { getAllVideos } from '@/services/videosService';
 
 export default function VideosScreen() {
   const insets = useSafeAreaInsets();
@@ -299,12 +299,13 @@ export default function VideosScreen() {
 
           {/* Video Player */}
           {selectedVideo && (
-            <WebView
-              source={{ uri: getYouTubeEmbedUrl(selectedVideo.youtubeUrl) }}
-              style={{ flex: 1 }}
-              allowsFullscreenVideo
-              javaScriptEnabled
-              domStorageEnabled
+            <YouTubePlayer
+              youtubeUrl={selectedVideo.youtubeUrl}
+              style={{ width: '100%', height: 250 }}
+              onError={(error) => {
+                console.error('Error playing video:', error);
+                Alert.alert('Error', 'Failed to load video. Please try again.');
+              }}
             />
           )}
 

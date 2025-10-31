@@ -205,7 +205,7 @@ export default function StoreScreen() {
           </View>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
