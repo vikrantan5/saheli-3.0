@@ -31,7 +31,8 @@ import {
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
-import SafetyMarkerModal from "@/components/SafetyMarkerModal";
+import SafetyMarkerModalEnhanced from "@/components/SafetyMarkerModalEnhanced";
+import VerificationModal from "@/components/VerificationModal";
 import {
   subscribeToSafetyMarkers,
   upvoteSafetyMarker,

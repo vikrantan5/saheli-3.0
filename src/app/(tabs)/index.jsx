@@ -38,6 +38,7 @@ import { useThemeContext } from "@/utils/ThemeContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
 import AlarmModal from "@/components/AlarmModal";
+import SOSCameraCapture from "@/components/SOSCameraCapture";
 import { triggerSOS } from "@/services/sosService";
 
 export default function SafetyHomeScreen() {
@@ -47,6 +48,8 @@ export default function SafetyHomeScreen() {
   const [safetyStatus, setSafetyStatus] = useState("Safe");
   const [nearbyResources, setNearbyResources] = useState([]);
   const [isAlarmActive, setIsAlarmActive] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState(null);
   const theme = useTheme();
   const { toggleTheme, themeMode } = useThemeContext();
 
@@ -88,12 +91,23 @@ export default function SafetyHomeScreen() {
         setSOSCountdown(prev => prev - 1);
       }, 1000);
     } else if (isSOSActive && sosCountdown === 0) {
-      handleSOSActivation();
-      setIsSOSActive(false);
-      setSOSCountdown(5);
+      // Show camera to capture photo
+      setShowCamera(true);
     }
     return () => clearInterval(interval);
   }, [isSOSActive, sosCountdown]);
+
+  const handleCameraCapture = (photoUri) => {
+    setShowCamera(false);
+    setCapturedPhotoUri(photoUri);
+    
+    // Continue with SOS activation
+    handleSOSActivation(photoUri);
+    
+    // Reset countdown
+    setIsSOSActive(false);
+    setSOSCountdown(5);
+  };
 
   const handleSOSPress = () => {
     if (isSOSActive) {
@@ -108,7 +122,7 @@ export default function SafetyHomeScreen() {
     Vibration.vibrate([100, 200, 100]);
   };
 
-  const handleSOSActivation = async () => {
+  const handleSOSActivation = async (photoUri = null) => {
     try {
       // Show loading alert
       Alert.alert(
@@ -118,11 +132,19 @@ export default function SafetyHomeScreen() {
         { cancelable: false }
       );
 
-      // Trigger SOS with all emergency protocols
-      const result = await triggerSOS();
+      // Trigger SOS with all emergency protocols (including photo if captured)
+      const result = await triggerSOS(photoUri);
 
       // Build success message
       let message = "Emergency protocols activated:\n\n";
+      
+      if (result.photoCapture && !result.photoCapture.skipped) {
+        if (result.imageUrl) {
+          message += `📸 Evidence photo captured & uploaded\n`;
+        } else if (result.imageUploadError) {
+          message += `⚠️ Photo: ${result.imageUploadError}\n`;
+        }
+      }
       
       if (result.sms.success) {
         message += `✅ SMS sent to ${result.sms.sentTo} contact(s)\n`;
@@ -241,6 +263,17 @@ export default function SafetyHomeScreen() {
       <AlarmModal 
         visible={isAlarmActive} 
         onClose={() => setIsAlarmActive(false)} 
+      />
+
+      {/* SOS Camera Capture */}
+      <SOSCameraCapture
+        visible={showCamera}
+        onCapture={handleCameraCapture}
+        onClose={() => {
+          setShowCamera(false);
+          setIsSOSActive(false);
+          setSOSCountdown(5);
+        }}
       />
 
       <ScrollView

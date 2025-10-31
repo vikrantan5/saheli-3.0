@@ -15,6 +15,7 @@
 				"NSLocationAlwaysAndWhenInUseUsageDescription": "Saheli needs your location to provide real-time safety monitoring and alerts when you enter unsafe areas.",
 				"NSLocationWhenInUseUsageDescription": "Saheli needs your location to show nearby safety information and provide safe route navigation.",
 				"NSLocationAlwaysUsageDescription": "Saheli needs background location access to send safety alerts even when the app is closed.",
+				"NSCameraUsageDescription": "Saheli needs camera access to capture evidence photos during emergency SOS situations.",
 				"UIBackgroundModes": ["location"]
 			},
 			"config": {
@@ -33,7 +34,8 @@
 				"android.permission.ACCESS_COARSE_LOCATION",
 				"android.permission.ACCESS_BACKGROUND_LOCATION",
 				"android.permission.FOREGROUND_SERVICE",
-				"android.permission.FOREGROUND_SERVICE_LOCATION"
+				"android.permission.FOREGROUND_SERVICE_LOCATION",
+				"android.permission.CAMERA"
 			],
 			"package": "xyz.create.CreateExpoEnvironment",
 			"config": {

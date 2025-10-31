@@ -4,10 +4,13 @@ import * as Linking from 'expo-linking';
 import { Alert } from 'react-native';
 import { getUserDetails } from './userService';
 import { getAuth } from 'firebase/auth';
+import { requestCameraPermission, getPhotoMetadata } from './cameraService';
+import { uploadSOSImage } from './storageService';
+import { encryptData } from './encryptionService';
 
 /**
- * Request SMS and Location permissions
- * @returns {Promise<Object>} Object with SMS and Location permission status
+ * Request SMS, Location, and Camera permissions
+ * @returns {Promise<Object>} Object with SMS, Location, and Camera permission status
  */
 export const requestSOSPermissions = async () => {
   try {
@@ -17,15 +20,20 @@ export const requestSOSPermissions = async () => {
     // Request Location permissions
     const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
     
+    // Request Camera permissions
+    const cameraGranted = await requestCameraPermission();
+    
     return {
       smsAvailable,
-      locationGranted: locationStatus === 'granted'
+      locationGranted: locationStatus === 'granted',
+      cameraGranted
     };
   } catch (error) {
     console.error('Error requesting SOS permissions:', error);
     return {
       smsAvailable: false,
-      locationGranted: false
+      locationGranted: false,
+      cameraGranted: false
     };
   }
 };
@@ -69,12 +77,13 @@ export const generateLocationLink = (latitude, longitude) => {
 };
 
 /**
- * Send SMS to emergency contacts
+ * Send SMS to emergency contacts with image link
  * @param {Array} contacts - Array of phone numbers (strings) or objects with phone property
  * @param {Object} location - Location object with latitude and longitude
+ * @param {string} imageUrl - Optional image URL to include in SMS
  * @returns {Promise<Object>} Result object with success status
  */
-export const sendEmergencySMS = async (contacts, location) => {
+export const sendEmergencySMS = async (contacts, location, imageUrl = null) => {
   try {
     const smsAvailable = await SMS.isAvailableAsync();
     
@@ -111,6 +120,10 @@ export const sendEmergencySMS = async (contacts, location) => {
       message += `Time: ${new Date().toLocaleString()}\n\n`;
     } else {
       message += 'Location unavailable.\n\n';
+    }
+    
+    if (imageUrl) {
+      message += `📸 Evidence Photo:\n${imageUrl}\n\n`;
     }
     
     message += 'Please contact me immediately or call emergency services.';
@@ -201,10 +214,11 @@ export const makeEmergencyCall = async (contacts) => {
 };
 
 /**
- * Main SOS function - triggers all emergency protocols
+ * Main SOS function - triggers all emergency protocols including camera capture
+ * @param {string} photoUri - Optional photo URI (if captured from component)
  * @returns {Promise<Object>} Result object with all actions taken
  */
-export const triggerSOS = async () => {
+export const triggerSOS = async (photoUri = null) => {
   try {
     // Get current user
     const auth = getAuth();
@@ -230,10 +244,40 @@ export const triggerSOS = async () => {
       location = await getCurrentLocation();
     }
 
-    // Send SMS to all contacts
+    // Handle photo capture and upload
+    let imageUrl = null;
+    let imageUploadError = null;
+    
+    if (photoUri && permissions.cameraGranted) {
+      try {
+        // Get photo metadata
+        const metadata = getPhotoMetadata(location);
+        
+        // Encrypt sensitive data
+        const encryptedMetadata = {
+          timestamp: metadata.timestamp,
+          deviceId: encryptData(metadata.deviceId),
+          gps: location ? encryptData({
+            lat: location.latitude,
+            lng: location.longitude
+          }) : null,
+        };
+
+        // Upload photo to Firebase Storage
+        imageUrl = await uploadSOSImage(photoUri, encryptedMetadata, currentUser.uid);
+        
+        console.log('✅ SOS photo uploaded successfully:', imageUrl);
+      } catch (error) {
+        console.error('❌ Error uploading SOS photo:', error);
+        imageUploadError = error.message;
+        // Continue with SOS even if photo upload fails
+      }
+    }
+
+    // Send SMS to all contacts (with image link if available)
     let smsResult = { success: false };
     if (permissions.smsAvailable) {
-      smsResult = await sendEmergencySMS(userDetails.emergencyContacts, location);
+      smsResult = await sendEmergencySMS(userDetails.emergencyContacts, location, imageUrl);
     }
 
     // Make call to first contact
@@ -246,6 +290,9 @@ export const triggerSOS = async () => {
       sms: smsResult,
       call: callResult,
       location: location,
+      imageUrl: imageUrl,
+      imageUploadError: imageUploadError,
+      photoCapture: photoUri ? { success: !!imageUrl } : { skipped: true },
       contactsCount: userDetails.emergencyContacts.length,
     };
 

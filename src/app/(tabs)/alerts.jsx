@@ -193,26 +193,19 @@ export default function AlertsScreen() {
 
   const handleAlertAction = async (alertId, action) => {
     try {
-      const response = await fetch('/api/safety/alerts/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alertId, action }),
-      });
-
-      if (response.ok) {
-        // Update local state
-        if (action === 'resolve') {
-          setAlerts(alerts.map(alert => 
-            alert.id === alertId ? { ...alert, status: 'resolved' } : alert
-          ));
-          Alert.alert("Alert Resolved", "The alert has been marked as resolved.");
-        } else if (action === 'dismiss') {
-          setAlerts(alerts.filter(alert => alert.id !== alertId));
-          Alert.alert("Alert Dismissed", "The alert has been dismissed.");
-        }
+      // Update local state (using Firebase-based alerts)
+      if (action === 'resolve') {
+        setAlerts(alerts.map(alert => 
+          alert.id === alertId ? { ...alert, status: 'resolved' } : alert
+        ));
+        Alert.alert("Alert Resolved", "The alert has been marked as resolved.");
+      } else if (action === 'dismiss') {
+        setAlerts(alerts.filter(alert => alert.id !== alertId));
+        Alert.alert("Alert Dismissed", "The alert has been dismissed.");
       }
     } catch (error) {
       console.error('Failed to update alert:', error);
+      Alert.alert("Error", "Failed to update alert. Please try again.");
     }
   };
 
