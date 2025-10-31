@@ -109,13 +109,22 @@ export default function AdminProductsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>{products.length} Products</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/(admin)/add-product')}
-          data-testid="add-product-button"
-        >
-          <Text style={styles.addButtonText}>+ Add Product</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: '#8b5cf6' }]}
+            onPress={() => router.push('/(admin)/manage-videos')}
+            data-testid="manage-videos-button"
+          >
+            <Text style={styles.addButtonText}>📹 Videos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => router.push('/(admin)/add-product')}
+            data-testid="add-product-button"
+          >
+            <Text style={styles.addButtonText}>+ Add Product</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList

@@ -30,6 +30,7 @@ import {
 } from "lucide-react-native";
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
+import TopNavbar from "@/components/TopNavbar";
 import PostCreationModal from "@/components/PostCreationModal";
 import { 
   subscribeToPosts, 
@@ -139,10 +140,13 @@ export default function CommunityScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar style={theme.colors.statusBar} />
 
+      {/* Top Navbar */}
+      <TopNavbar title="Community" />
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: insets.top + 16,
+          paddingTop: 16,
           paddingBottom: insets.bottom + 16,
         }}
         showsVerticalScrollIndicator={false}

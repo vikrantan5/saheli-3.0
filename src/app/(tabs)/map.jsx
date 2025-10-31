@@ -33,6 +33,7 @@ import {
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
+import TopNavbar from "@/components/TopNavbar";
 import SafetyMarkerModalEnhanced from "@/components/SafetyMarkerModalEnhanced";
 import VerificationModal from "@/components/VerificationModal";
 import {
@@ -309,6 +310,9 @@ export default function SafetyMapScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar style={theme.colors.statusBar} />
+
+      {/* Top Navbar */}
+      <TopNavbar title="Safe Map" />
 
       {/* Map View */}
       <View style={{ flex: 1, position: "relative" }}>

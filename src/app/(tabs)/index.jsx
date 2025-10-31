@@ -40,6 +40,7 @@ import ActionButton from "@/components/ActionButton";
 import AlarmModal from "@/components/AlarmModal";
 import SOSCameraCapture from "@/components/SOSCameraCapture";
 import VerificationRequestBanner from "@/components/VerificationRequestBanner";
+import TopNavbar from "@/components/TopNavbar";
 import { triggerSOS } from "@/services/sosService";
 import { getCurrentLocation } from "@/services/locationService";
 import { getPendingVerificationMarkers } from "@/services/safetyMapService";
@@ -282,6 +283,9 @@ export default function SafetyHomeScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar style={theme.colors.statusBar} />
 
+      {/* Top Navbar */}
+      <TopNavbar title="Saheli" />
+
       {/* Alarm Modal */}
       <AlarmModal 
         visible={isAlarmActive} 
@@ -302,43 +306,21 @@ export default function SafetyHomeScreen() {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: insets.top + 16,
+          paddingTop: 16,
           paddingHorizontal: 24,
           paddingBottom: insets.bottom + 16,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header with Theme Toggle */}
         <View
           style={{
             flexDirection: "row",
-            justifyContent: "space-between",
+            justifyContent: "flex-end",
             alignItems: "center",
             marginBottom: 32,
           }}
         >
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontFamily: "Inter_700Bold",
-                fontSize: 24,
-                color: theme.colors.text,
-                marginBottom: 4,
-              }}
-            >
-              Saheli
-            </Text>
-            <Text
-              style={{
-                fontFamily: "Inter_400Regular",
-                fontSize: 14,
-                color: theme.colors.textSecondary,
-              }}
-            >
-              Your safety, our priority
-            </Text>
-          </View>
-
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             {/* Theme Toggle Button */}
             <TouchableOpacity

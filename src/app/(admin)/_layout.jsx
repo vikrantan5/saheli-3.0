@@ -89,6 +89,13 @@ export default function AdminLayout() {
           headerShown: true,
         }}
       />
+      <Stack.Screen
+        name="manage-videos"
+        options={{
+          title: 'Manage Videos',
+          headerShown: true,
+        }}
+      />
     </Stack>
   );
 }

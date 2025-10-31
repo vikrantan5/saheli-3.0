@@ -15,6 +15,7 @@ import { getCartItemCount } from '@/services/cartService';
 import { auth } from '@/config/firebaseConfig';
 import { getUserDetails } from '@/services/userService';
 import ProductCard from '@/components/ProductCard';
+import TopNavbar from '@/components/TopNavbar';
 import { ShoppingCart, ShoppingBag, Shield } from 'lucide-react-native';
 
 export default function StoreScreen() {
@@ -130,31 +131,41 @@ export default function StoreScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Shield color="#ec4899" size={28} strokeWidth={2} />
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Saheli Store</Text>
-            <Text style={styles.headerSubtitle}>Safety Gadgets for Women</Text>
-          </View>
-        </View>
+    <View style={styles.container}>
+      {/* Top Navbar with Cart Button */}
+      <View style={{ backgroundColor: '#fff' }}>
+        <TopNavbar title="Saheli Store" />
         
-        <View style={styles.headerRight}>
+        {/* Action Buttons Row */}
+        <View style={{ 
+          flexDirection: 'row', 
+          paddingHorizontal: 24, 
+          paddingBottom: 12,
+          paddingTop: 8,
+          gap: 12,
+        }}>
           {isAdmin && (
             <TouchableOpacity
-              style={styles.iconButton}
+              style={[styles.iconButton, { flex: 1 }]}
               onPress={() => router.push('/(admin)/products')}
               data-testid="admin-panel-button"
             >
-              <Shield color="#ec4899" size={24} />
+              <Shield color="#ec4899" size={20} />
               <Text style={styles.adminText}>Admin</Text>
             </TouchableOpacity>
           )}
           
           <TouchableOpacity
-            style={styles.cartButton}
+            style={[styles.actionButton, { flex: 1 }]}
+            onPress={() => router.push('/store/orders')}
+            data-testid="my-orders-button"
+          >
+            <ShoppingBag color="#8b5cf6" size={20} />
+            <Text style={styles.actionButtonText}>My Orders</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.cartButton, { position: 'relative' }]}
             onPress={() => router.push('/store/cart')}
             data-testid="cart-button"
           >
@@ -166,18 +177,6 @@ export default function StoreScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => router.push('/store/orders')}
-          data-testid="my-orders-button"
-        >
-          <ShoppingBag color="#8b5cf6" size={20} />
-          <Text style={styles.actionButtonText}>My Orders</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Category Filter */}

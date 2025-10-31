@@ -34,6 +34,7 @@ import {
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
+import TopNavbar from "@/components/TopNavbar";
 import { auth } from "@/config/firebaseConfig";
 import { getUserDetails } from "@/services/userService";
 import { getUserPostCount } from "@/services/communityService";
@@ -257,26 +258,19 @@ export default function ProfileScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar style={theme.colors.statusBar} />
 
+      {/* Top Navbar */}
+      <TopNavbar title="Profile" />
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: insets.top + 16,
+          paddingTop: 16,
           paddingBottom: insets.bottom + 16,
         }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={{ paddingHorizontal: 24, marginBottom: 32 }}>
-          <Text
-            style={{
-              fontFamily: "Inter_600SemiBold",
-              fontSize: 24,
-              color: theme.colors.text,
-              marginBottom: 4,
-            }}
-          >
-            Profile & Settings
-          </Text>
           <Text
             style={{
               fontFamily: "Inter_400Regular",
