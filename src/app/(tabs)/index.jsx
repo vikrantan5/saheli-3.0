@@ -39,7 +39,10 @@ import LoadingScreen from "@/components/LoadingScreen";
 import ActionButton from "@/components/ActionButton";
 import AlarmModal from "@/components/AlarmModal";
 import SOSCameraCapture from "@/components/SOSCameraCapture";
+import VerificationRequestBanner from "@/components/VerificationRequestBanner";
 import { triggerSOS } from "@/services/sosService";
+import { getCurrentLocation } from "@/services/locationService";
+import { getPendingVerificationMarkers } from "@/services/safetyMapService";
 
 export default function SafetyHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -50,6 +53,7 @@ export default function SafetyHomeScreen() {
   const [isAlarmActive, setIsAlarmActive] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [capturedPhotoUri, setCapturedPhotoUri] = useState(null);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
   const theme = useTheme();
   const { toggleTheme, themeMode } = useThemeContext();
 
@@ -82,7 +86,26 @@ export default function SafetyHomeScreen() {
         phone: "1091" // Women helpline number
       },
     ]);
+
+    // Check for pending verifications
+    checkPendingVerifications();
   }, []);
+
+  const checkPendingVerifications = async () => {
+    try {
+      const location = await getCurrentLocation();
+      if (location) {
+        const pending = await getPendingVerificationMarkers(location, 0.5);
+        setPendingVerifications(pending);
+        
+        if (pending.length > 0) {
+          console.log(`📍 Found ${pending.length} markers pending verification nearby`);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking pending verifications:', error);
+    }
+  };
 
   useEffect(() => {
     let interval;
@@ -358,6 +381,13 @@ export default function SafetyHomeScreen() {
             </View>
           </View>
         </View>
+
+        {/* Verification Request Banner */}
+        <VerificationRequestBanner
+          pendingCount={pendingVerifications.length}
+          onPress={() => router.push("/(tabs)/map")}
+          onDismiss={() => setPendingVerifications([])}
+        />
 
         {/* Main SOS Button */}
         <View style={{ alignItems: "center", marginBottom: 40 }}>

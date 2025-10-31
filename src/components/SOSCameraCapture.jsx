@@ -1,30 +1,48 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Camera } from 'expo-camera';
-import { X, Camera as CameraIcon } from 'lucide-react-native';
 import { useTheme } from '@/utils/useTheme';
 
 export default function SOSCameraCapture({ visible, onCapture, onClose }) {
   const theme = useTheme();
   const [hasPermission, setHasPermission] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [cameraAvailable, setCameraAvailable] = useState(true);
   const cameraRef = useRef(null);
 
   useEffect(() => {
     if (visible) {
-      requestCameraPermission();
+      requestCameraPermissionAndCapture();
     }
   }, [visible]);
 
-  const requestCameraPermission = async () => {
-    const { status } = await Camera.requestCameraPermissionsAsync();
-    setHasPermission(status === 'granted');
-    
-    if (status === 'granted') {
-      // Auto-capture after 1 second
-      setTimeout(() => {
-        capturePhoto();
-      }, 1000);
+  const requestCameraPermissionAndCapture = async () => {
+    try {
+      // Check if Camera is available (not available on web)
+      if (!Camera || !Camera.Constants || Platform.OS === 'web') {
+        console.log('⚠️ Camera not available on this platform, continuing without photo');
+        setCameraAvailable(false);
+        onCapture(null);
+        return;
+      }
+
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === 'granted');
+      
+      if (status === 'granted') {
+        // Silent auto-capture immediately
+        setTimeout(() => {
+          capturePhoto();
+        }, 500); // Small delay to ensure camera is ready
+      } else {
+        // Permission denied, continue without photo
+        console.log('⚠️ Camera permission denied, continuing without photo');
+        onCapture(null);
+      }
+    } catch (error) {
+      console.error('Error requesting camera permission:', error);
+      setCameraAvailable(false);
+      onCapture(null);
     }
   };
 
@@ -38,7 +56,7 @@ export default function SOSCameraCapture({ visible, onCapture, onClose }) {
         skipProcessing: false,
       });
       
-      console.log('✅ Photo captured:', photo.uri);
+      console.log('✅ Evidence photo captured silently:', photo.uri);
       onCapture(photo.uri);
     } catch (error) {
       console.error('❌ Error capturing photo:', error);
@@ -50,74 +68,46 @@ export default function SOSCameraCapture({ visible, onCapture, onClose }) {
 
   if (!visible) return null;
 
-  if (hasPermission === null) {
+  // If camera not available, show brief message and continue
+  if (!cameraAvailable) {
     return (
       <View style={styles.container}>
-        <View style={[styles.content, { backgroundColor: theme.colors.background }]}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.text, { color: theme.colors.text }]}>
-            Requesting camera permission...
+        <View style={[styles.content, { backgroundColor: 'rgba(0, 0, 0, 0.9)' }]}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+          <Text style={styles.text}>
+            Camera not available on this platform. Continuing with SOS alert...
           </Text>
         </View>
       </View>
     );
   }
 
-  if (hasPermission === false) {
-    return (
-      <View style={styles.container}>
-        <View style={[styles.content, { backgroundColor: theme.colors.background }]}>
-          <Text style={[styles.text, { color: theme.colors.text }]}>
-            Camera permission denied. Continuing without photo...
-          </Text>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: theme.colors.primary }]}
-            onPress={() => onCapture(null)}
-          >
-            <Text style={styles.buttonText}>Continue</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
+  // Silent capture - no UI shown to user except brief loading indicator
   return (
     <View style={styles.container}>
-      <Camera
-        ref={cameraRef}
-        style={styles.camera}
-        type={Camera.Constants.Type.back}
-        autoFocus={Camera.Constants.AutoFocus.on}
-      >
-        <View style={styles.overlay}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => onCapture(null)}
-          >
-            <X size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <View style={styles.centerContent}>
-            {isCapturing ? (
-              <>
-                <ActivityIndicator size="large" color="#FFFFFF" />
-                <Text style={styles.captureText}>Capturing evidence...</Text>
-              </>
-            ) : (
-              <>
-                <CameraIcon size={48} color="#FFFFFF" />
-                <Text style={styles.captureText}>Auto-capturing photo...</Text>
-              </>
-            )}
-          </View>
-
-          <View style={styles.bottomInfo}>
-            <Text style={styles.infoText}>
-              📸 Evidence photo will be sent to emergency contacts
-            </Text>
+      {hasPermission === null || hasPermission === false ? (
+        // No camera UI shown - just processing indicator
+        <View style={[styles.content, { backgroundColor: 'rgba(0, 0, 0, 0.9)' }]}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+          <Text style={styles.text}>
+            {hasPermission === null ? 'Processing...' : 'Continuing without photo...'}
+          </Text>
+        </View>
+      ) : (
+        // Camera active but hidden from user view - captures silently
+        <View style={styles.hiddenCameraContainer}>
+          <Camera
+            ref={cameraRef}
+            style={styles.hiddenCamera}
+            type={Camera?.Constants?.Type?.back || 'back'}
+            autoFocus={Camera?.Constants?.AutoFocus?.on || 'on'}
+          />
+          <View style={[styles.content, { backgroundColor: 'rgba(0, 0, 0, 0.9)' }]}>
+            <ActivityIndicator size="large" color="#FFFFFF" />
+            <Text style={styles.text}>Capturing evidence...</Text>
           </View>
         </View>
-      </Camera>
+      )}
     </View>
   );
 }
@@ -131,48 +121,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1000,
   },
-  camera: {
+  hiddenCameraContainer: {
     flex: 1,
+    position: 'relative',
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'space-between',
-    padding: 20,
-  },
-  closeButton: {
-    alignSelf: 'flex-end',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 40,
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  bottomInfo: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  infoText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 13,
-    color: '#FFFFFF',
-    textAlign: 'center',
+  hiddenCamera: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0, // Camera is hidden from user
   },
   content: {
     flex: 1,
@@ -183,18 +142,8 @@ const styles = StyleSheet.create({
   text: {
     fontFamily: 'Inter_500Medium',
     fontSize: 16,
+    color: '#FFFFFF',
     marginTop: 16,
     textAlign: 'center',
-  },
-  button: {
-    marginTop: 24,
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  buttonText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 16,
-    color: '#FFFFFF',
   },
 });

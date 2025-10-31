@@ -27,6 +27,8 @@ import {
   Plus,
   Zap,
   ThumbsUp,
+  CheckCircle,
+  Info,
 } from "lucide-react-native";
 import { useTheme } from "@/utils/useTheme";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -38,6 +40,8 @@ import {
   upvoteSafetyMarker,
   hasUserUpvotedMarker,
   calculateDistance,
+  getPendingVerificationMarkers,
+  getSafetyScoreCategory,
 } from "@/services/safetyMapService";
 import {
   getCurrentLocation,
@@ -64,6 +68,9 @@ export default function SafetyMapScreen() {
   const [route, setRoute] = useState(null);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
   const [locationMonitoring, setLocationMonitoring] = useState(null);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [selectedMarkerForVerification, setSelectedMarkerForVerification] = useState(null);
   const theme = useTheme();
 
   const [fontsLoaded] = useFonts({
@@ -92,6 +99,13 @@ export default function SafetyMapScreen() {
     });
 
     return () => unsubscribe();
+  }, [currentLocation]);
+
+  // Check for pending verifications when location changes
+  useEffect(() => {
+    if (currentLocation) {
+      checkPendingVerifications();
+    }
   }, [currentLocation]);
 
   const initializeMap = async () => {
@@ -130,6 +144,19 @@ export default function SafetyMapScreen() {
     }
   };
 
+  const checkPendingVerifications = async () => {
+    try {
+      const pending = await getPendingVerificationMarkers(currentLocation, 0.5);
+      setPendingVerifications(pending);
+      
+      if (pending.length > 0) {
+        console.log(`📍 Found ${pending.length} markers pending verification nearby`);
+      }
+    } catch (error) {
+      console.error('Error checking pending verifications:', error);
+    }
+  };
+
   const updateNearbyMarkers = (markers, location) => {
     if (!location || !markers) return;
 
@@ -162,6 +189,11 @@ export default function SafetyMapScreen() {
     } catch (error) {
       console.error("Failed to upvote marker:", error);
     }
+  };
+
+  const handleVerifyMarker = (marker) => {
+    setSelectedMarkerForVerification(marker);
+    setShowVerificationModal(true);
   };
 
   const handleRouteSelect = (routeType) => {
@@ -318,18 +350,21 @@ export default function SafetyMapScreen() {
             data-testid="safety-map-view"
           >
             {/* Safety Markers */}
-            {safetyMarkers.map((marker) => (
-              <Marker
-                key={marker.id}
-                coordinate={{
-                  latitude: marker.coordinates.latitude,
-                  longitude: marker.coordinates.longitude,
-                }}
-                pinColor={getMarkerColor(marker.status)}
-                title={`${marker.status.toUpperCase()} Zone`}
-                description={marker.note || `${marker.upvotes} upvotes`}
-              />
-            ))}
+            {safetyMarkers.map((marker) => {
+              const scoreCategory = getSafetyScoreCategory(marker.safetyScore || 50);
+              return (
+                <Marker
+                  key={marker.id}
+                  coordinate={{
+                    latitude: marker.coordinates.latitude,
+                    longitude: marker.coordinates.longitude,
+                  }}
+                  pinColor={getMarkerColor(marker.status)}
+                  title={`${marker.status.toUpperCase()} Zone - ${scoreCategory.label}`}
+                  description={`${scoreCategory.emoji} Safety: ${marker.safetyScore || 50}/100 | ${marker.verificationStatus === 'verified' ? '✅ Verified' : '⏳ Pending'} | ${marker.upvotes} upvotes`}
+                />
+              );
+            })}
 
             {/* Route Polyline */}
             {route && route.points && (
@@ -393,6 +428,46 @@ export default function SafetyMapScreen() {
         >
           <Plus size={28} color="#FFFFFF" strokeWidth={2} />
         </TouchableOpacity>
+
+        {/* Pending Verifications Badge */}
+        {pendingVerifications.length > 0 && (
+          <TouchableOpacity
+            style={{
+              position: "absolute",
+              right: 16,
+              top: insets.top + 16,
+              backgroundColor: theme.colors.warning,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderRadius: 24,
+              flexDirection: "row",
+              alignItems: "center",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+            onPress={() => {
+              if (pendingVerifications.length > 0) {
+                handleVerifyMarker(pendingVerifications[0]);
+              }
+            }}
+            data-testid="pending-verifications-badge"
+          >
+            <Info size={16} color="#FFFFFF" strokeWidth={2} />
+            <Text
+              style={{
+                fontFamily: "Inter_600SemiBold",
+                fontSize: 12,
+                color: "#FFFFFF",
+                marginLeft: 6,
+              }}
+            >
+              {pendingVerifications.length} Marker{pendingVerifications.length > 1 ? 's' : ''} Need Verification
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Bottom Sheet */}
@@ -553,6 +628,7 @@ export default function SafetyMapScreen() {
               {nearbyMarkers.map((marker) => {
                 const MarkerIcon = getMarkerIcon(marker.status);
                 const userHasUpvoted = hasUserUpvotedMarker(marker.upvoters);
+                const scoreCategory = getSafetyScoreCategory(marker.safetyScore || 50);
 
                 return (
                   <View
@@ -598,37 +674,64 @@ export default function SafetyMapScreen() {
                         }}
                         numberOfLines={1}
                       >
-                        {marker.note || "No description"} • {formatDistance(marker.distance)}
+                        {scoreCategory.emoji} {scoreCategory.label} ({marker.safetyScore || 50}/100) • {formatDistance(marker.distance)}
                       </Text>
+                      {marker.verificationStatus === 'verified' && (
+                        <Text
+                          style={{
+                            fontFamily: "Inter_500Medium",
+                            fontSize: 10,
+                            color: theme.colors.success,
+                            marginTop: 2,
+                          }}
+                        >
+                          ✅ Verified by {marker.verificationCount} users
+                        </Text>
+                      )}
                     </View>
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: userHasUpvoted ? theme.colors.success : theme.colors.buttonBackground,
-                        paddingHorizontal: 8,
-                        paddingVertical: 6,
-                        borderRadius: 8,
-                      }}
-                      onPress={() => handleUpvoteMarker(marker.id)}
-                    >
-                      <ThumbsUp
-                        size={12}
-                        color={userHasUpvoted ? "#FFFFFF" : theme.colors.text}
-                        strokeWidth={1.5}
-                        fill={userHasUpvoted ? "#FFFFFF" : "transparent"}
-                      />
-                      <Text
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TouchableOpacity
                         style={{
-                          fontFamily: "Inter_600SemiBold",
-                          fontSize: 11,
-                          color: userHasUpvoted ? "#FFFFFF" : theme.colors.text,
-                          marginLeft: 4,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: userHasUpvoted ? theme.colors.success : theme.colors.buttonBackground,
+                          paddingHorizontal: 8,
+                          paddingVertical: 6,
+                          borderRadius: 8,
                         }}
+                        onPress={() => handleUpvoteMarker(marker.id)}
                       >
-                        {marker.upvotes}
-                      </Text>
-                    </TouchableOpacity>
+                        <ThumbsUp
+                          size={12}
+                          color={userHasUpvoted ? "#FFFFFF" : theme.colors.text}
+                          strokeWidth={1.5}
+                          fill={userHasUpvoted ? "#FFFFFF" : "transparent"}
+                        />
+                        <Text
+                          style={{
+                            fontFamily: "Inter_600SemiBold",
+                            fontSize: 11,
+                            color: userHasUpvoted ? "#FFFFFF" : theme.colors.text,
+                            marginLeft: 4,
+                          }}
+                        >
+                          {marker.upvotes}
+                        </Text>
+                      </TouchableOpacity>
+                      {marker.verificationStatus !== 'verified' && (
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: theme.colors.warning,
+                            paddingHorizontal: 8,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                          }}
+                          onPress={() => handleVerifyMarker(marker)}
+                        >
+                          <CheckCircle size={16} color="#FFFFFF" strokeWidth={2} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 );
               })}
@@ -637,14 +740,26 @@ export default function SafetyMapScreen() {
         </ScrollView>
       </View>
 
-      {/* Safety Marker Modal */}
-      <SafetyMarkerModal
+      {/* Safety Marker Modal (Enhanced with Attributes) */}
+      <SafetyMarkerModalEnhanced
         visible={showMarkerModal}
         onClose={() => {
           setShowMarkerModal(false);
           setSelectedCoordinates(null);
         }}
         coordinates={selectedCoordinates}
+      />
+
+      {/* Verification Modal */}
+      <VerificationModal
+        visible={showVerificationModal}
+        onClose={() => {
+          setShowVerificationModal(false);
+          setSelectedMarkerForVerification(null);
+          // Refresh pending verifications
+          checkPendingVerifications();
+        }}
+        marker={selectedMarkerForVerification}
       />
     </View>
   );
