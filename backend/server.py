@@ -9,6 +9,7 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 import asyncio
+import fal_client
 
 load_dotenv()
 
@@ -23,13 +24,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import deepfake detection modules
-try:
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-    EMERGENT_AVAILABLE = True
-except ImportError:
-    EMERGENT_AVAILABLE = False
-    print("⚠️  emergentintegrations not installed. Using fallback detection.")
+# Initialize fal.ai LLAVA client
+FAL_API_KEY = os.getenv("FAL_API_KEY")
+FAL_AVAILABLE = bool(FAL_API_KEY)
+
+if FAL_AVAILABLE:
+    os.environ["FAL_KEY"] = FAL_API_KEY
+    print("✅ fal.ai LLAVA API initialized successfully.")
+else:
+    print("⚠️  FAL_API_KEY not found. Deepfake detection will not work.")
 
 class DeepfakeAnalysisResult(BaseModel):
     verification_result: str  # "real", "suspicious", "deepfake"
@@ -48,84 +51,116 @@ class AnalysisRequest(BaseModel):
     mime_type: Optional[str] = "image/jpeg"
 
 async def analyze_with_ai(image_base64: str) -> Dict:
-    """Use AI vision model for deepfake detection"""
-    if not EMERGENT_AVAILABLE:
-        raise HTTPException(status_code=503, detail="AI service not available")
-    
-    api_key = os.getenv("EMERGENT_LLM_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="API key not configured")
+    """Use fal.ai LLAVA model for deepfake detection"""
+    if not FAL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="fal.ai API key not configured")
     
     try:
-        # Initialize AI chat with vision model
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"deepfake-{uuid.uuid4()}",
-            system_message="""You are an expert AI Security & Computer Vision specialist in Deepfake Detection and Image Forensics.
-            
-Your task is to analyze images and determine if they are:
-            - Authentic (real photo)
-            - Manipulated (edited/altered)
-            - AI-generated / Deepfake
-            
-Analyze the image for:
-            1. Pixel-level artifacts and GAN fingerprints
-            2. Unnatural lighting or shadows
-            3. Face geometry inconsistencies (eyes, nose, jawline)
-            4. Skin texture abnormalities (over-smoothing, pore inconsistency)
-            5. Blending boundary errors
-            6. Facial symmetry issues
-            7. Unrealistic reflections or highlights
-            
-Provide your response in JSON format with these exact fields:
-            {
-              "verdict": "real" | "suspicious" | "deepfake",
-              "confidence": 0-100,
-              "deepfake_probability": 0-100,
-              "face_consistency": 0-100,
-              "texture_anomaly": 0-100,
-              "findings": ["list of specific observations"],
-              "explanation": "user-friendly explanation without technical jargon"
-            }
-            """
-        ).with_model("openai", "gpt-5.1")
+        # Create data URI for the image
+        image_url = f"data:image/jpeg;base64,{image_base64}"
         
-        # Create image content
-        image_content = ImageContent(image_base64=image_base64)
+        # Simplified prompt - ask for description first, then we'll structure it
+        prompt = """Analyze this image carefully. Is it: 
+1) A real photograph
+2) AI-generated/deepfake
+3) Edited/manipulated
+
+Look at: lighting, shadows, face geometry, skin texture, digital artifacts.
+
+Give a 2-3 sentence analysis stating your conclusion and key observations."""
+
+        # Call fal.ai LLAVA API
+        def run_sync():
+            return fal_client.subscribe(
+                "fal-ai/llava-next",
+                arguments={
+                    "image_url": image_url,
+                    "prompt": prompt
+                },
+                with_logs=False
+            )
         
-        # Send analysis request
-        user_message = UserMessage(
-            text="Analyze this image for deepfake detection. Provide detailed analysis.",
-            file_contents=[image_content]
-        )
+        # Run in executor to avoid blocking
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, run_sync)
         
-        response = await chat.send_message(user_message)
+        # Extract response
+        response_text = result.get("output", "").strip()
         
-        # Parse AI response
-        try:
-            # Extract JSON from response
-            response_text = response.strip()
-            if "```json" in response_text:
-                response_text = response_text.split("```json")[1].split("```")[0]
-            elif "```" in response_text:
-                response_text = response_text.split("```")[1].split("```")[0]
-            
-            result = json.loads(response_text)
-            return result
-        except json.JSONDecodeError:
-            # Fallback: parse from text response
-            return {
-                "verdict": "suspicious",
-                "confidence": 60,
-                "deepfake_probability": 40,
-                "face_consistency": 70,
-                "texture_anomaly": 30,
-                "findings": ["Analysis completed but response format needs adjustment"],
-                "explanation": response[:500]
-            }
+        # Log for debugging
+        print(f"LLAVA Response: {response_text}")
+        
+        # Since LLAVA gives us text analysis, we need to interpret it intelligently
+        response_lower = response_text.lower()
+        
+        # Determine verdict based on keywords and context in response
+        verdict = "suspicious"
+        confidence = 60
+        deepfake_prob = 50
+        face_consistency = 70
+        texture_anomaly = 30
+        
+        # Check for negative indicators (deepfake/fake)
+        negative_phrases = [
+            "not a real", "not real", "appears to be fake", "digital creation",
+            "manipulation", "ai-generated", "deepfake", "synthetic", "artificial",
+            "generated", "fake", "edited image", "altered image", "digital manipulation",
+            "unrealistic", "unnatural", "artificial intelligence", "computer generated"
+        ]
+        
+        # Check for positive indicators (real/authentic)
+        positive_phrases = [
+            "appears to be real", "real photograph", "authentic", "genuine",
+            "natural photograph", "real image", "real photo", "legitimate",
+            "unmanipulated", "original"
+        ]
+        
+        negative_count = sum(1 for phrase in negative_phrases if phrase in response_lower)
+        positive_count = sum(1 for phrase in positive_phrases if phrase in response_lower)
+        
+        # Decision logic
+        if negative_count > positive_count:
+            verdict = "deepfake"
+            confidence = min(70 + (negative_count * 5), 95)
+            deepfake_prob = min(75 + (negative_count * 5), 95)
+            face_consistency = max(40 - (negative_count * 5), 20)
+            texture_anomaly = min(65 + (negative_count * 5), 90)
+        elif positive_count > negative_count:
+            verdict = "real"
+            confidence = min(75 + (positive_count * 5), 95)
+            deepfake_prob = max(25 - (positive_count * 5), 5)
+            face_consistency = min(80 + (positive_count * 3), 95)
+            texture_anomaly = max(20 - (positive_count * 3), 5)
+        else:
+            # Unclear or mixed signals
+            verdict = "suspicious"
+            confidence = 65
+            deepfake_prob = 50
+            face_consistency = 65
+            texture_anomaly = 45
+        
+        # Extract key observations
+        findings = []
+        sentences = response_text.split(". ")
+        for sentence in sentences[:3]:  # Take first 3 sentences as findings
+            if sentence.strip():
+                findings.append(sentence.strip())
+        
+        if not findings:
+            findings = [response_text[:200]]
+        
+        return {
+            "verdict": verdict,
+            "confidence": confidence,
+            "deepfake_probability": deepfake_prob,
+            "face_consistency": face_consistency,
+            "texture_anomaly": texture_anomaly,
+            "findings": findings,
+            "explanation": response_text[:500]
+        }
     
     except Exception as e:
-        print(f"AI analysis error: {str(e)}")
+        print(f"fal.ai LLAVA analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
 
 async def basic_analysis(image_base64: str) -> Dict:
@@ -150,15 +185,17 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "Saheli Deepfake Analyzer",
-        "ai_available": EMERGENT_AVAILABLE
+        "ai_available": FAL_AVAILABLE,
+        "model": "llava-next",
+        "provider": "fal.ai"
     }
 
 @app.post("/api/analyze-deepfake", response_model=DeepfakeAnalysisResult)
 async def analyze_deepfake(request: AnalysisRequest):
     """Analyze an image for deepfake detection"""
     try:
-        # Use AI analysis if available, otherwise fallback
-        if EMERGENT_AVAILABLE:
+        # Use fal.ai LLAVA analysis if available, otherwise fallback
+        if FAL_AVAILABLE:
             analysis = await analyze_with_ai(request.image_base64)
         else:
             analysis = await basic_analysis(request.image_base64)
