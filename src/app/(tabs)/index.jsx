@@ -31,6 +31,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  ScanFace,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useTheme } from "@/utils/useTheme";
@@ -556,6 +557,33 @@ export default function SafetyHomeScreen() {
                 }}
               >
                 Community
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
+            <TouchableOpacity
+              data-testid="deepfake-analyzer-button"
+              style={{
+                flex: 1,
+                backgroundColor: theme.colors.elevated,
+                borderRadius: 12,
+                padding: 16,
+                alignItems: "center",
+              }}
+              onPress={() => router.push("/deepfake-analyzer")}
+            >
+              <ScanFace size={24} color={theme.colors.text} strokeWidth={1.5} />
+              <Text
+                style={{
+                  fontFamily: "Inter_500Medium",
+                  fontSize: 12,
+                  color: theme.colors.text,
+                  marginTop: 8,
+                  textAlign: "center",
+                }}
+              >
+                Deepfake Analyzer
               </Text>
             </TouchableOpacity>
           </View>

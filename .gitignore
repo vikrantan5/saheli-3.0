@@ -3,6 +3,7 @@
 # dependencies
 node_modules/
 
+caches
 # Expo
 .expo/
 dist/
